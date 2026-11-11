@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#1f6b57"/>
+  <!-- The month strip: spent, a gap, left over -->
+  <rect x="72" y="192" width="208" height="128" rx="20" fill="#e07a62"/>
+  <rect x="296" y="192" width="144" height="128" rx="20" fill="#f3f5f2"/>
+</svg>
