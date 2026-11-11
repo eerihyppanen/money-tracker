@@ -22,7 +22,7 @@ const MONTHS_PER_STEP: Record<Exclude<Frequency, 'weekly' | 'one-time'>, number>
 };
 
 /** Monthly-equivalent amount in cents. One-time entries have none and return 0. */
-export function monthlyEquivalent(entry: Entry): number {
+export function monthlyEquivalent(entry: Pick<Entry, 'amountCents' | 'frequency'>): number {
   const a = entry.amountCents;
   switch (entry.frequency) {
     case 'weekly':
@@ -35,7 +35,7 @@ export function monthlyEquivalent(entry: Entry): number {
 }
 
 /** Yearly total in cents. One-time entries return 0. */
-export function yearlyEquivalent(entry: Entry): number {
+export function yearlyEquivalent(entry: Pick<Entry, 'amountCents' | 'frequency'>): number {
   const a = entry.amountCents;
   switch (entry.frequency) {
     case 'weekly':
