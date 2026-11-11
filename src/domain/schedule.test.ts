@@ -5,6 +5,7 @@ import {
   averageMonth,
   byCategory,
   isEnded,
+  monthProgress,
   monthSummary,
   monthlyEquivalent,
   occurrencesInRange,
@@ -318,5 +319,37 @@ describe('byCategory', () => {
       { categoryId: 'housing', monthlyCents: 92000 },
       { categoryId: 'subscriptions', monthlyCents: 1500 },
     ]);
+  });
+});
+
+describe('monthProgress', () => {
+  const entries = [
+    entry({ id: 'salary', type: 'income', amountCents: 300000, nextDueDate: '2026-11-25' }),
+    entry({ id: 'bonus', type: 'income', frequency: 'one-time', amountCents: 50000, nextDueDate: '2026-11-05' }),
+    entry({ id: 'rent', amountCents: 90000, nextDueDate: '2026-12-01', anchorDay: 1 }),
+    entry({ id: 'phone', amountCents: 2000, nextDueDate: '2026-11-11' }),
+    entry({ id: 'netflix', amountCents: 1500, nextDueDate: '2026-11-20' }),
+  ];
+
+  it('splits the current month into what has happened so far and what is still to come', () => {
+    const p = monthProgress(entries, '2026-11-11');
+    expect(p).toMatchObject({
+      year: 2026,
+      month: 11,
+      incomeCents: 350000,
+      expenseCents: 93500,
+      netCents: 256500,
+      receivedSoFarCents: 50000,
+      stillExpectedCents: 300000,
+      // Today's charge counts as already paid.
+      spentSoFarCents: 92000,
+      stillDueCents: 1500,
+    });
+  });
+
+  it('counts everything as done on the last day of the month', () => {
+    const p = monthProgress(entries, '2026-11-30');
+    expect(p.stillDueCents).toBe(0);
+    expect(p.stillExpectedCents).toBe(0);
   });
 });

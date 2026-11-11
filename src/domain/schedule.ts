@@ -193,3 +193,36 @@ export function byCategory(entries: Entry[], today: ISODate): CategoryTotal[] {
     .filter((t) => t.monthlyCents > 0)
     .sort((a, b) => b.monthlyCents - a.monthlyCents);
 }
+
+export interface MonthProgress extends MonthSummary {
+  year: number;
+  month: number;
+  /** Expenses dated up to and including today. */
+  spentSoFarCents: number;
+  /** Expenses dated after today, still this month. */
+  stillDueCents: number;
+  receivedSoFarCents: number;
+  stillExpectedCents: number;
+}
+
+/** The current month, split into what has happened so far (today included) and what is still to come. */
+export function monthProgress(entries: Entry[], today: ISODate): MonthProgress {
+  const [year, month] = today.split('-').map(Number);
+  const summary = monthSummary(entries, year, month);
+  let spentSoFarCents = 0;
+  let receivedSoFarCents = 0;
+  for (const { entry, date } of summary.charges) {
+    if (date > today) continue;
+    if (entry.type === 'income') receivedSoFarCents += entry.amountCents;
+    else spentSoFarCents += entry.amountCents;
+  }
+  return {
+    ...summary,
+    year,
+    month,
+    spentSoFarCents,
+    stillDueCents: summary.expenseCents - spentSoFarCents,
+    receivedSoFarCents,
+    stillExpectedCents: summary.incomeCents - receivedSoFarCents,
+  };
+}

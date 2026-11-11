@@ -40,3 +40,16 @@ export function parseAmount(input: string): number | null {
 export function formatAmountInput(cents: number): string {
   return `${Math.floor(cents / 100)},${String(cents % 100).padStart(2, '0')}`;
 }
+
+const weekday = new Intl.DateTimeFormat('en-GB', { weekday: 'short', timeZone: 'UTC' });
+
+/** 'Today', 'Tomorrow', or a short weekday and date like 'Fri 13.11.' */
+export function formatDayLabel(date: ISODate, today: ISODate): string {
+  if (date === today) return 'Today';
+  const { y, m, d } = parseISO(date);
+  const t = parseISO(today);
+  const tomorrow = new Date(Date.UTC(t.y, t.m - 1, t.d + 1));
+  const day = new Date(Date.UTC(y, m - 1, d));
+  if (day.getTime() === tomorrow.getTime()) return 'Tomorrow';
+  return `${weekday.format(day)} ${d}.${m}.`;
+}

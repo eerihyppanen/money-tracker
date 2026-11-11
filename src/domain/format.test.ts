@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatAmountInput, formatCents, formatDate, formatMonth, parseAmount } from './format';
+import { formatAmountInput, formatCents, formatDate, formatDayLabel, formatMonth, parseAmount } from './format';
 
 // Intl uses non-breaking spaces and a real minus sign; normalise them for readable assertions.
 const plain = (s: string) => s.replace(/[  ]/g, ' ').replace(/−/g, '-');
@@ -61,5 +61,14 @@ describe('formatAmountInput', () => {
   it('turns cents back into an editable string', () => {
     expect(formatAmountInput(123450)).toBe('1234,50');
     expect(formatAmountInput(5)).toBe('0,05');
+  });
+});
+
+describe('formatDayLabel', () => {
+  it('names today and tomorrow, otherwise weekday and short date', () => {
+    expect(formatDayLabel('2026-11-11', '2026-11-11')).toBe('Today');
+    expect(formatDayLabel('2026-11-12', '2026-11-11')).toBe('Tomorrow');
+    expect(formatDayLabel('2026-11-13', '2026-11-11')).toBe('Fri 13.11.');
+    expect(formatDayLabel('2027-01-04', '2026-11-11')).toBe('Mon 4.1.');
   });
 });
