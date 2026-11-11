@@ -1,0 +1,64 @@
+@import '@fontsource-variable/familjen-grotesk';
+@import 'tailwindcss';
+
+/* Spruce & lingonberry palette. Raw values live here; components use the semantic names. */
+:root {
+  --c-bg: #f3f5f2;
+  --c-surface: #ffffff;
+  --c-ink: #17231e;
+  --c-muted: #66736d;
+  --c-line: #d9dfda;
+  --c-income: #1f6b57;
+  --c-expense: #a23b5b;
+  --c-accent: #1f6b57;
+  --c-accent-ink: #ffffff;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --c-bg: #0f1714;
+    --c-surface: #17221e;
+    --c-ink: #e6ede9;
+    --c-muted: #93a19a;
+    --c-line: #2a3833;
+    --c-income: #5bb497;
+    --c-expense: #e07a98;
+    --c-accent: #5bb497;
+    --c-accent-ink: #0f1714;
+    color-scheme: dark;
+  }
+}
+
+@theme inline {
+  --font-sans: 'Familjen Grotesk Variable', ui-sans-serif, system-ui, sans-serif;
+  --color-bg: var(--c-bg);
+  --color-surface: var(--c-surface);
+  --color-ink: var(--c-ink);
+  --color-muted: var(--c-muted);
+  --color-line: var(--c-line);
+  --color-income: var(--c-income);
+  --color-expense: var(--c-expense);
+  --color-accent: var(--c-accent);
+  --color-accent-ink: var(--c-accent-ink);
+}
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    @apply bg-bg text-ink font-sans antialiased;
+    font-size: 16px;
+    line-height: 1.5;
+  }
+  :focus-visible {
+    outline: 2px solid var(--c-accent);
+    outline-offset: 2px;
+  }
+}
+
+/* Amounts always use tabular figures so columns of money line up. */
+.num {
+  font-variant-numeric: tabular-nums;
+}
