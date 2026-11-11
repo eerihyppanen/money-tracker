@@ -1,15 +1,16 @@
 @import '@fontsource-variable/familjen-grotesk';
 @import 'tailwindcss';
 
-/* Spruce & lingonberry palette. Raw values live here; components use the semantic names. */
+/* Spruce UI accent; rosehip (expenses) and lake blue (income) were validated as a
+   colour-blind-safe pair in both modes. Raw values live here; components use semantic names. */
 :root {
   --c-bg: #f3f5f2;
   --c-surface: #ffffff;
   --c-ink: #17231e;
   --c-muted: #66736d;
   --c-line: #d9dfda;
-  --c-income: #1f6b57;
-  --c-expense: #a23b5b;
+  --c-income: #2a6fa0;
+  --c-expense: #b84a3a;
   --c-accent: #1f6b57;
   --c-accent-ink: #ffffff;
   color-scheme: light;
@@ -22,8 +23,8 @@
     --c-ink: #e6ede9;
     --c-muted: #93a19a;
     --c-line: #2a3833;
-    --c-income: #5bb497;
-    --c-expense: #e07a98;
+    --c-income: #4a98d4;
+    --c-expense: #d96a56;
     --c-accent: #5bb497;
     --c-accent-ink: #0f1714;
     color-scheme: dark;

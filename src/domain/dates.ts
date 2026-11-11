@@ -76,3 +76,26 @@ export function maxDate(a: ISODate, b: ISODate): ISODate {
 export function todayISO(now: Date = new Date()): ISODate {
   return toISO({ y: now.getFullYear(), m: now.getMonth() + 1, d: now.getDate() });
 }
+
+export interface YearMonth {
+  year: number;
+  month: number; // 1–12
+}
+
+export function shiftMonth(year: number, month: number, delta: number): YearMonth {
+  const index = year * 12 + (month - 1) + delta;
+  return { year: Math.floor(index / 12), month: (index % 12) + 1 };
+}
+
+/** (2026, 3) → '2026-03', used in the month view's URL. */
+export function toMonthParam(year: number, month: number): string {
+  return `${year}-${String(month).padStart(2, '0')}`;
+}
+
+export function parseMonthParam(value: string | null): YearMonth | null {
+  const match = value?.match(/^(\d{4})-(\d{2})$/);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  return month >= 1 && month <= 12 ? { year, month } : null;
+}

@@ -13,7 +13,7 @@ const pendingFill = {
  * what is still due and what's left over. If spending exceeds income, the bar scales to
  * spending and a marker shows where income runs out.
  */
-export function MonthStrip({ progress }: { progress: MonthProgress }) {
+export function MonthStrip({ progress, caption }: { progress: MonthProgress; caption: string }) {
   const g = stripGeometry({
     incomeCents: progress.incomeCents,
     spentCents: progress.spentSoFarCents,
@@ -29,15 +29,12 @@ export function MonthStrip({ progress }: { progress: MonthProgress }) {
         </span>{' '}
         <span className="text-ink">{short ? 'short' : 'left over'}</span>
       </h2>
-      <p className="mt-1 text-muted">
-        {short
-          ? "This month's payments add up to more than this month's income."
-          : 'After everything that lands this month.'}
-      </p>
+      <p className="mt-1 text-muted">{caption}</p>
 
       <div className="relative mt-6">
+        {/* 2px gaps keep the segments apart without relying on colour alone. */}
         <div
-          className="flex h-11 overflow-hidden rounded-lg bg-line"
+          className="flex h-11 gap-0.5 overflow-hidden rounded-lg bg-line"
           role="img"
           aria-label={`Spent so far ${formatCents(progress.spentSoFarCents)}, still due ${formatCents(
             progress.stillDueCents,

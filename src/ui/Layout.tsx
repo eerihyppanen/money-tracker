@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useData } from '../data/dataContext';
 import { CalendarIcon, ListIcon, OverviewIcon, PlusIcon, SettingsIcon } from './components/icons';
@@ -13,6 +14,11 @@ export function Layout() {
   const { loading, error } = useData();
   const { pathname } = useLocation();
   const onEntryPage = pathname.startsWith('/entry');
+
+  // Each page opens at the top instead of keeping the previous page's scroll position.
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
 
   return (
     <div className="min-h-dvh md:flex">

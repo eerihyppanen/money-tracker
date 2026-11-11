@@ -4,6 +4,7 @@ import {
   addInterval,
   averageMonth,
   byCategory,
+  expensesByCategory,
   isEnded,
   monthProgress,
   monthSummary,
@@ -351,5 +352,42 @@ describe('monthProgress', () => {
     const p = monthProgress(entries, '2026-11-30');
     expect(p.stillDueCents).toBe(0);
     expect(p.stillExpectedCents).toBe(0);
+  });
+});
+
+describe('monthProgress for other months', () => {
+  const entries = [
+    entry({ id: 'salary', type: 'income', amountCents: 300000, nextDueDate: '2026-11-25' }),
+    entry({ id: 'rent', amountCents: 90000, nextDueDate: '2026-12-01', anchorDay: 1 }),
+  ];
+
+  it('treats every charge in a past month as already happened', () => {
+    const p = monthProgress(entries, '2026-11-11', 2026, 10);
+    expect(p).toMatchObject({ year: 2026, month: 10, spentSoFarCents: 90000, stillDueCents: 0, receivedSoFarCents: 300000 });
+  });
+
+  it('treats every charge in a future month as still to come', () => {
+    const p = monthProgress(entries, '2026-11-11', 2027, 1);
+    expect(p).toMatchObject({ year: 2027, month: 1, spentSoFarCents: 0, stillDueCents: 90000, stillExpectedCents: 300000 });
+  });
+});
+
+describe('expensesByCategory', () => {
+  it('totals the expense charges per category, largest first, ignoring income', () => {
+    const rent = entry({ id: 'rent', categoryId: 'housing', amountCents: 90000 });
+    const water = entry({ id: 'water', categoryId: 'housing', amountCents: 3000 });
+    const food = entry({ id: 'food', categoryId: 'food', frequency: 'weekly', amountCents: 8000 });
+    const salary = entry({ id: 'salary', type: 'income', amountCents: 300000 });
+    const charges = [
+      { entry: rent, date: '2026-11-01' },
+      { entry: food, date: '2026-11-02' },
+      { entry: food, date: '2026-11-09' },
+      { entry: water, date: '2026-11-15' },
+      { entry: salary, date: '2026-11-25' },
+    ];
+    expect(expensesByCategory(charges)).toEqual([
+      { categoryId: 'housing', cents: 93000 },
+      { categoryId: 'food', cents: 16000 },
+    ]);
   });
 });

@@ -205,9 +205,16 @@ export interface MonthProgress extends MonthSummary {
   stillExpectedCents: number;
 }
 
-/** The current month, split into what has happened so far (today included) and what is still to come. */
-export function monthProgress(entries: Entry[], today: ISODate): MonthProgress {
-  const [year, month] = today.split('-').map(Number);
+/**
+ * A month (the current one by default), split into what has happened so far (today included)
+ * and what is still to come. Past months are all "so far"; future months are all "still to come".
+ */
+export function monthProgress(
+  entries: Entry[],
+  today: ISODate,
+  year = Number(today.slice(0, 4)),
+  month = Number(today.slice(5, 7)),
+): MonthProgress {
   const summary = monthSummary(entries, year, month);
   let spentSoFarCents = 0;
   let receivedSoFarCents = 0;
@@ -225,4 +232,16 @@ export function monthProgress(entries: Entry[], today: ISODate): MonthProgress {
     receivedSoFarCents,
     stillExpectedCents: summary.incomeCents - receivedSoFarCents,
   };
+}
+
+/** Expense charges totalled per category, largest first. Income is ignored. */
+export function expensesByCategory(charges: Charge[]): { categoryId: string; cents: number }[] {
+  const totals = new Map<string, number>();
+  for (const { entry } of charges) {
+    if (entry.type !== 'expense') continue;
+    totals.set(entry.categoryId, (totals.get(entry.categoryId) ?? 0) + entry.amountCents);
+  }
+  return [...totals]
+    .map(([categoryId, cents]) => ({ categoryId, cents }))
+    .sort((a, b) => b.cents - a.cents);
 }
