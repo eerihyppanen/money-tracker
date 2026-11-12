@@ -166,7 +166,8 @@ function CategoryRow({ category, count, onDelete }: { category: Category; count:
 }
 
 function Backup({ onStatus }: { onStatus: (s: Status) => void }) {
-  const { entries, categories, today, categoryName, replaceAll } = useData();
+  const { entries, categories, today, categoryName, replaceAll, storageStatus, requestPersistentStorage } =
+    useData();
   const fileInput = useRef<HTMLInputElement>(null);
 
   const onExport = () => {
@@ -229,6 +230,25 @@ function Backup({ onStatus }: { onStatus: (s: Status) => void }) {
       <p className="mt-2 text-sm text-muted">
         Restoring replaces everything on this device. The CSV opens in Excel or Numbers and can't be imported back.
       </p>
+      {storageStatus === 'persistent' && (
+        <p className="mt-4 text-sm">Your browser keeps this data permanently. It won't be cleared to free up space.</p>
+      )}
+      {storageStatus === 'best-effort' && (
+        <div className="mt-4 rounded-xl border border-line px-4 py-3 text-sm">
+          <p>
+            Your browser may clear this data if the device runs low on space. Installing the app to your home
+            screen usually stops that. Until then, save a backup now and then.
+          </p>
+          <button type="button" onClick={() => void requestPersistentStorage()} className="mt-2 font-medium text-accent">
+            Ask the browser to keep it
+          </button>
+        </div>
+      )}
+      {storageStatus === 'unsupported' && (
+        <p className="mt-4 text-sm text-muted">
+          This browser can't promise to keep the data, so save a backup now and then.
+        </p>
+      )}
     </section>
   );
 }

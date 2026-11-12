@@ -4,6 +4,7 @@ import { rollForward } from '../domain/schedule';
 import { OTHER_CATEGORY_ID, type Category, type Entry } from '../domain/types';
 import { DataContext, type DataContextValue } from './dataContext';
 import { repository } from './index';
+import { ensurePersistentStorage, type StorageStatus } from './persistence';
 
 /** Alphabetical, with the catch-all "Other" always last. */
 function sortCategories(categories: Category[]): Category[] {
@@ -18,6 +19,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [today, setToday] = useState(() => todayISO());
   const [entries, setEntries] = useState<Entry[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [storageStatus, setStorageStatus] = useState<StorageStatus | null>(null);
 
   /** Moves passed due dates forward, saves the changes, then reloads everything. */
   const refresh = useCallback(async () => {
@@ -43,6 +45,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       }
     };
     void start();
+    // Ask the browser not to clear the database; runs alongside loading, never blocks it.
+    void ensurePersistentStorage().then(setStorageStatus);
 
     const onVisible = () => {
       if (document.visibilityState === 'visible') void refresh();
@@ -56,6 +60,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
     return {
       loading,
       error,
+      storageStatus,
+      async requestPersistentStorage() {
+        setStorageStatus(await ensurePersistentStorage());
+      },
       today,
       entries,
       categories,
@@ -83,7 +91,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         await refresh();
       },
     };
-  }, [loading, error, today, entries, categories, refresh]);
+  }, [loading, error, storageStatus, today, entries, categories, refresh]);
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 }
