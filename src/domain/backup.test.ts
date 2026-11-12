@@ -90,6 +90,19 @@ describe('toCSV', () => {
     ]);
   });
 
+  it('stops spreadsheet apps from running text as a formula', () => {
+    const rows = (csv: string) => csv.slice(1).split('\r\n')[1];
+    expect(rows(toCSV([entry({ name: '=HYPERLINK("http://x","click")' })], name))).toMatch(
+      /^"'=HYPERLINK\(""http:\/\/x"",""click""\)";/,
+    );
+    expect(rows(toCSV([entry({ name: '+358 phone' })], name))).toMatch(/^'\+358 phone;/);
+    expect(rows(toCSV([entry({ name: '-5 discount' })], name))).toMatch(/^'-5 discount;/);
+    expect(rows(toCSV([entry({ name: '@SUM(A1)' })], name))).toMatch(/^'@SUM\(A1\);/);
+    expect(rows(toCSV([entry({ notes: '=1+1' })], name))).toMatch(/;'=1\+1$/);
+    // Ordinary text and the numbers the app writes itself are left alone.
+    expect(rows(toCSV([entry({ name: 'Rent = flat' })], name))).toMatch(/^Rent = flat;Expense;1234,50;/);
+  });
+
   it('quotes fields containing separators, quotes or line breaks', () => {
     const csv = toCSV([entry({ name: 'Rent; flat "A"', notes: 'line 1\nline 2', active: false })], name);
     expect(csv).toContain('"Rent; flat ""A""";');

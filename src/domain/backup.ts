@@ -132,9 +132,14 @@ export function parseBackup(text: string): ParseResult {
   return { ok: true, data: { entries, categories }, warnings };
 }
 
-/** One CSV field: quoted only when it contains a separator, quote or line break. */
+/**
+ * One CSV field. Text starting with = + - @ (or a tab/CR) gets a leading apostrophe so
+ * Excel and similar apps show it as text instead of running it as a formula. Then the field
+ * is quoted only when it contains a separator, quote or line break.
+ */
 function csvField(value: string): string {
-  return /[;"\r\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+  const safe = /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
+  return /[;"\r\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
 }
 
 /**
