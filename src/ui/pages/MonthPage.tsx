@@ -1,4 +1,4 @@
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useData } from '../../data/dataContext';
 import { parseMonthParam, shiftMonth, toMonthParam } from '../../domain/dates';
 import { formatCents, formatMonth } from '../../domain/format';
@@ -9,6 +9,10 @@ import { ChevronLeftIcon, ChevronRightIcon } from '../components/icons';
 import { PageHeader } from '../components/PageHeader';
 import { SectionTitle } from '../components/SectionTitle';
 import { MonthStrip } from '../overview/MonthStrip';
+import { useSwipe } from '../swipe';
+
+/** Which way the month content slides in, passed along in the navigation state. */
+type Slide = 'next' | 'prev';
 
 const monthOnly = new Intl.DateTimeFormat('en-GB', { month: 'long', timeZone: 'UTC' });
 
@@ -27,6 +31,15 @@ export function MonthPage() {
   };
   const navButton = 'flex size-10 items-center justify-center rounded-full border border-line hover:bg-surface';
 
+  const navigate = useNavigate();
+  const slide = (useLocation().state as { slide?: Slide } | null)?.slide;
+  // Swipe left for the next month, right for the previous one, like turning pages.
+  const swipe = useSwipe((direction) =>
+    direction === 'left'
+      ? navigate(link(1), { replace: true, state: { slide: 'next' } })
+      : navigate(link(-1), { replace: true, state: { slide: 'prev' } }),
+  );
+
   const expenseNames = new Map<string, string[]>();
   for (const { entry } of progress.charges) {
     if (entry.type !== 'expense') continue;
@@ -35,7 +48,7 @@ export function MonthPage() {
   }
 
   return (
-    <>
+    <div {...swipe} className="min-h-[70dvh]">
       <PageHeader title={formatMonth(year, month)}>
         <nav aria-label="Change month" className="flex items-center gap-2">
           {!isCurrent && (
@@ -43,10 +56,10 @@ export function MonthPage() {
               This month
             </Link>
           )}
-          <Link to={link(-1)} replace className={navButton} aria-label="Previous month">
+          <Link to={link(-1)} replace state={{ slide: 'prev' }} className={navButton} aria-label="Previous month">
             <ChevronLeftIcon width={20} height={20} />
           </Link>
-          <Link to={link(1)} replace className={navButton} aria-label="Next month">
+          <Link to={link(1)} replace state={{ slide: 'next' }} className={navButton} aria-label="Next month">
             <ChevronRightIcon width={20} height={20} />
           </Link>
         </nav>
@@ -61,7 +74,7 @@ export function MonthPage() {
           to see what lands in each month.
         </p>
       ) : (
-        <div className="flex flex-col gap-10">
+        <div key={`${year}-${month}`} className={`flex flex-col gap-10 ${slide ? `slide-${slide}` : ""}`}>
           <MonthStrip progress={progress} caption={caption(progress, isCurrent, current)} />
           <div className="grid gap-10 md:grid-cols-2 md:gap-8">
             <section aria-labelledby="payments">
@@ -89,7 +102,7 @@ export function MonthPage() {
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }
 

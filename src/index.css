@@ -63,3 +63,25 @@
 .num {
   font-variant-numeric: tabular-nums;
 }
+
+/* Months view: content slides in from the side you swiped or tapped towards. */
+@media (prefers-reduced-motion: no-preference) {
+  .slide-next {
+    animation: slide-in-from-right 180ms ease-out;
+  }
+  .slide-prev {
+    animation: slide-in-from-left 180ms ease-out;
+  }
+}
+@keyframes slide-in-from-right {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+}
+@keyframes slide-in-from-left {
+  from {
+    opacity: 0;
+    transform: translateX(-24px);
+  }
+}
