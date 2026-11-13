@@ -58,7 +58,7 @@ export function Segmented<T extends string>({
             role="radio"
             aria-checked={selected}
             onClick={() => onChange(o.value)}
-            className={`flex-1 rounded-lg font-medium ${size === 'sm' ? 'px-3 py-1.5 text-sm' : 'px-4 py-2.5'} ${
+            className={`flex-1 rounded-lg font-medium ${size === 'sm' ? 'px-3 py-2 text-sm md:py-1.5' : 'px-4 py-2.5'} ${
               selected ? 'bg-ink text-bg' : 'text-muted hover:text-ink'
             }`}
           >

@@ -13,7 +13,8 @@ const NAV = [
 export function Layout() {
   const { loading, error } = useData();
   const { pathname } = useLocation();
-  const onEntryPage = pathname.startsWith('/entry');
+  // No floating add button where it would only cover things: the form itself and Settings.
+  const showAddButton = !pathname.startsWith('/entry') && pathname !== '/settings';
 
   // Each page opens at the top instead of keeping the previous page's scroll position.
   useEffect(() => {
@@ -63,7 +64,7 @@ export function Layout() {
       </main>
 
       {/* Floating add button on phones */}
-      {!onEntryPage && (
+      {showAddButton && (
         <Link
           to="/entry/new"
           aria-label="Add entry"

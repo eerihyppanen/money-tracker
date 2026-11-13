@@ -31,7 +31,7 @@ export function OverviewPage() {
                 : 'After everything that lands this month.'
             }
           />
-          <div className="grid gap-10 md:grid-cols-2 md:gap-8">
+          <div className="grid grid-cols-1 gap-10 md:grid-cols-2 md:gap-8">
             <div className="flex flex-col gap-10">
               <AverageMonth totals={averageMonth(entries, today)} />
               <section aria-labelledby="by-category">

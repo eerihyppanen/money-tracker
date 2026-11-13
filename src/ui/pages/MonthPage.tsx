@@ -52,7 +52,7 @@ export function MonthPage() {
       <PageHeader title={formatMonth(year, month)}>
         <nav aria-label="Change month" className="flex items-center gap-2">
           {!isCurrent && (
-            <Link to="/month" className="mr-1 text-sm text-accent">
+            <Link to="/month" className="px-1 py-2.5 text-sm text-accent">
               This month
             </Link>
           )}
@@ -76,7 +76,7 @@ export function MonthPage() {
       ) : (
         <div key={`${year}-${month}`} className={`flex flex-col gap-10 ${slide ? `slide-${slide}` : ""}`}>
           <MonthStrip progress={progress} caption={caption(progress, isCurrent, current)} />
-          <div className="grid gap-10 md:grid-cols-2 md:gap-8">
+          <div className="grid grid-cols-1 gap-10 md:grid-cols-2 md:gap-8">
             <section aria-labelledby="payments">
               <SectionTitle id="payments" title="Payments">
                 {progress.charges.length > 0 ? (

@@ -96,7 +96,7 @@ function EntryForm({ original }: { original?: Entry }) {
   return (
     <form onSubmit={onSubmit} noValidate className="mx-auto max-w-xl">
       <PageHeader title={original ? 'Edit entry' : 'New entry'}>
-        <button type="button" onClick={goBack} className="text-muted hover:text-ink">
+        <button type="button" onClick={goBack} className="-mr-2 px-2 py-2 text-muted hover:text-ink">
           Cancel
         </button>
       </PageHeader>

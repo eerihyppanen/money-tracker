@@ -9,7 +9,7 @@ import { Segmented } from '../components/form';
 import { PageHeader } from '../components/PageHeader';
 
 const selectClass =
-  'rounded-lg border border-line bg-surface py-1.5 pr-8 pl-3 text-sm text-ink focus:border-accent focus:outline-none';
+  'rounded-lg border border-line bg-surface py-2 pr-8 pl-3 text-base text-ink md:py-1.5 md:text-sm focus:border-accent focus:outline-none';
 
 /** Filters live in the URL so they survive opening an entry and coming back. */
 function useListFilter(): [ListFilter, (patch: Partial<ListFilter>) => void] {

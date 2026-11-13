@@ -146,20 +146,25 @@ function CategoryRow({ category, count, onDelete }: { category: Category; count:
   }
 
   return (
-    <li className="flex items-center gap-3 px-4 py-3">
+    <li className="flex items-center gap-1 px-4 py-1.5">
       <span className="min-w-0 flex-1">
         <span className="block truncate">{category.name}</span>
         <span className="num block text-sm text-muted">
           {count} {count === 1 ? 'entry' : 'entries'}
         </span>
       </span>
-      <button type="button" onClick={() => setEditing(true)} className="px-2 py-1 text-sm text-accent">
+      <button type="button" onClick={() => setEditing(true)} className="px-3 py-2.5 text-sm text-accent">
         Rename
       </button>
-      {category.id !== OTHER_CATEGORY_ID && (
-        <button type="button" onClick={onDelete} className="px-2 py-1 text-sm text-expense">
+      {category.id !== OTHER_CATEGORY_ID ? (
+        <button type="button" onClick={onDelete} className="-mr-2 px-3 py-2.5 text-sm text-expense">
           Delete
         </button>
+      ) : (
+        // Other can't be deleted; an empty slot keeps its Rename in line with the rows above.
+        <span aria-hidden="true" className="invisible -mr-2 px-3 text-sm">
+          Delete
+        </span>
       )}
     </li>
   );
@@ -239,7 +244,7 @@ function Backup({ onStatus }: { onStatus: (s: Status) => void }) {
             Your browser may clear this data if the device runs low on space. Installing the app to your home
             screen usually stops that. Until then, save a backup now and then.
           </p>
-          <button type="button" onClick={() => void requestPersistentStorage()} className="mt-2 font-medium text-accent">
+          <button type="button" onClick={() => void requestPersistentStorage()} className="-mb-2.5 py-2.5 font-medium text-accent">
             Ask the browser to keep it
           </button>
         </div>
