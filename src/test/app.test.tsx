@@ -43,6 +43,7 @@ beforeEach(async () => {
   vi.useFakeTimers({ toFake: ['Date'], now: new Date(2026, 10, 11, 10, 0) });
   await repository.init();
   await repository.replaceAll({ entries: [], categories: DEFAULT_CATEGORIES });
+  localStorage.clear();
 });
 
 afterEach(() => {
@@ -175,5 +176,39 @@ describe('settings', () => {
     await user.click(screen.getAllByRole('link', { name: 'Add entry' })[0]);
     const category = await screen.findByLabelText('Category');
     expect(within(category).getByRole('option', { name: 'Pets' })).toBeInTheDocument();
+  });
+});
+
+describe('backup reminder', () => {
+  it('asks for a backup until one is saved, then stays quiet', async () => {
+    const created = vi.fn((_blob: Blob) => 'blob:backup');
+    URL.createObjectURL = created;
+    URL.revokeObjectURL = vi.fn();
+    const clicked = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    await repository.putEntry(entry({}));
+    const user = await openApp('#/');
+
+    expect(screen.getByText("Your entries aren't backed up yet.")).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Save backup' }));
+
+    expect(clicked).toHaveBeenCalledOnce();
+    const saved = JSON.parse(await created.mock.calls[0][0].text());
+    expect(saved.entries.map((e: Entry) => e.name)).toEqual(['Rent']);
+    expect(screen.queryByText(/backed up yet/)).not.toBeInTheDocument();
+
+    // Still quiet after reopening the app, and Settings shows the date.
+    cleanup();
+    await openApp('#/');
+    expect(screen.queryByRole('button', { name: 'Save backup' })).not.toBeInTheDocument();
+    cleanup();
+    await openApp('#/settings');
+    expect(screen.getByText(/Last backup saved 11\.11\.2026\./)).toBeInTheDocument();
+  });
+
+  it('comes back 30 days after the last backup', async () => {
+    localStorage.setItem('money-tracker:last-backup', '2026-10-12');
+    await repository.putEntry(entry({}));
+    await openApp('#/');
+    expect(screen.getByText('Last backup 30 days ago.')).toBeInTheDocument();
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createBackup, parseBackup, toCSV, validateCategoryName } from './backup';
+import { backupReminder, createBackup, parseBackup, toCSV, validateCategoryName } from './backup';
 import { DEFAULT_CATEGORIES, type Category, type Entry } from './types';
 
 function entry(overrides: Partial<Entry> = {}): Entry {
@@ -120,5 +120,23 @@ describe('validateCategoryName', () => {
 
   it('allows keeping the same name when renaming', () => {
     expect(validateCategoryName('Housing', DEFAULT_CATEGORIES, 'housing')).toBeNull();
+  });
+});
+
+describe('backupReminder', () => {
+  it('stays quiet when there is nothing to lose', () => {
+    expect(backupReminder(null, '2026-11-14', 0)).toBeNull();
+  });
+
+  it('asks for a first backup once there are entries', () => {
+    expect(backupReminder(null, '2026-11-14', 3)).toEqual({ kind: 'never' });
+    expect(backupReminder('not a date', '2026-11-14', 3)).toEqual({ kind: 'never' });
+  });
+
+  it('stays quiet for 30 days after a backup, then says how long it has been', () => {
+    expect(backupReminder('2026-11-14', '2026-11-14', 3)).toBeNull();
+    expect(backupReminder('2026-10-16', '2026-11-14', 3)).toBeNull(); // 29 days
+    expect(backupReminder('2026-10-15', '2026-11-14', 3)).toEqual({ kind: 'stale', days: 30 });
+    expect(backupReminder('2025-11-14', '2026-11-14', 3)).toEqual({ kind: 'stale', days: 365 });
   });
 });

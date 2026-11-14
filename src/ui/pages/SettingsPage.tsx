@@ -1,23 +1,16 @@
 import { useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { useData } from '../../data/dataContext';
-import { createBackup, parseBackup, toCSV, validateCategoryName } from '../../domain/backup';
+import { parseBackup, toCSV, validateCategoryName } from '../../domain/backup';
+import { formatDate } from '../../domain/format';
 import { OTHER_CATEGORY_ID, type Category } from '../../domain/types';
 import { inputClass } from '../components/form';
 import { PageHeader } from '../components/PageHeader';
 import { SectionTitle } from '../components/SectionTitle';
+import { download, useBackup } from '../useBackup';
 
 type Status = { kind: 'ok' | 'error'; text: string } | null;
 
 const buttonClass = 'rounded-xl border border-line bg-surface px-4 py-2.5 font-medium hover:border-accent';
-
-function download(filename: string, content: string, type: string) {
-  const url = URL.createObjectURL(new Blob([content], { type }));
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
 
 export function SettingsPage() {
   const [status, setStatus] = useState<Status>(null);
@@ -174,10 +167,10 @@ function Backup({ onStatus }: { onStatus: (s: Status) => void }) {
   const { entries, categories, today, categoryName, replaceAll, storageStatus, requestPersistentStorage } =
     useData();
   const fileInput = useRef<HTMLInputElement>(null);
+  const { lastBackup, saveBackup } = useBackup();
 
   const onExport = () => {
-    const backup = createBackup({ entries, categories }, new Date().toISOString());
-    download(`money-tracker-backup-${today}.json`, JSON.stringify(backup, null, 2), 'application/json');
+    saveBackup();
     onStatus({ kind: 'ok', text: `Backup saved with ${entries.length} entries.` });
   };
 
@@ -233,6 +226,7 @@ function Backup({ onStatus }: { onStatus: (s: Status) => void }) {
         />
       </div>
       <p className="mt-2 text-sm text-muted">
+        {lastBackup ? `Last backup saved ${formatDate(lastBackup)}. ` : 'No backup saved on this device yet. '}
         Restoring replaces everything on this device. The CSV opens in Excel or Numbers and can't be imported back.
       </p>
       {storageStatus === 'persistent' && (

@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useData } from '../../data/dataContext';
+import { backupReminder } from '../../domain/backup';
 import { formatCents, formatMonth } from '../../domain/format';
 import { averageMonth, byCategory, isEnded, monthProgress, upcoming, type Totals } from '../../domain/schedule';
 import type { Entry } from '../../domain/types';
@@ -8,6 +9,7 @@ import { ChargeList } from '../components/ChargeList';
 import { PageHeader } from '../components/PageHeader';
 import { SectionTitle } from '../components/SectionTitle';
 import { MonthStrip } from '../overview/MonthStrip';
+import { useBackup } from '../useBackup';
 
 export function OverviewPage() {
   const { entries, today } = useData();
@@ -23,6 +25,7 @@ export function OverviewPage() {
         <Welcome />
       ) : (
         <div className="flex flex-col gap-10">
+          <BackupReminder />
           <MonthStrip
             progress={progress}
             caption={
@@ -99,6 +102,27 @@ function Row({ label, value, className }: { label: string; value: string; classN
       <dt>{label}</dt>
       <dd className={className}>{value}</dd>
     </div>
+  );
+}
+
+/** One quiet line when this device's data has no recent backup; gone once one is saved. */
+function BackupReminder() {
+  const { entries, today } = useData();
+  const { lastBackup, saveBackup } = useBackup();
+  const reminder = backupReminder(lastBackup, today, entries.length);
+  if (!reminder) return null;
+
+  return (
+    <p className="-mt-4 -mb-6 flex items-center justify-between gap-3 text-sm text-muted">
+      <span>
+        {reminder.kind === 'never'
+          ? "Your entries aren't backed up yet."
+          : `Last backup ${reminder.days} days ago.`}
+      </span>
+      <button type="button" onClick={saveBackup} className="-mr-2 shrink-0 px-2 py-2.5 font-medium text-accent">
+        Save backup
+      </button>
+    </p>
   );
 }
 

@@ -1,5 +1,5 @@
 /** JSON backups, CSV export and category-name rules. Pure functions, no storage. */
-import { isValidISO } from './dates';
+import { daysBetween, isValidISO } from './dates';
 import { formatAmountInput, formatDate } from './format';
 import { monthlyEquivalent, yearlyEquivalent } from './schedule';
 import {
@@ -187,4 +187,20 @@ export function validateCategoryName(name: string, categories: Category[], excep
   if (trimmed === '') return 'Enter a name.';
   const clash = categories.find((c) => c.id !== exceptId && c.name.toLowerCase() === trimmed.toLowerCase());
   return clash ? `There is already a category called ${clash.name}.` : null;
+}
+
+/** Days after a backup before the app suggests a new one. */
+export const BACKUP_REMINDER_DAYS = 30;
+
+export type BackupReminder = { kind: 'never' } | { kind: 'stale'; days: number } | null;
+
+/**
+ * Whether to suggest saving a backup: never with no entries, always when there has been no
+ * backup yet, and otherwise once the last one is BACKUP_REMINDER_DAYS old.
+ */
+export function backupReminder(lastBackup: string | null, today: string, entryCount: number): BackupReminder {
+  if (entryCount === 0) return null;
+  if (lastBackup === null || !isValidISO(lastBackup)) return { kind: 'never' };
+  const days = daysBetween(lastBackup, today);
+  return days >= BACKUP_REMINDER_DAYS ? { kind: 'stale', days } : null;
 }
