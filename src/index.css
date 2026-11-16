@@ -13,6 +13,8 @@
   --c-expense: #b84a3a;
   --c-accent: #1f6b57;
   --c-accent-ink: #ffffff;
+  /* Accent on an ink-coloured background (the Undo bar): the other theme's spruce. */
+  --c-accent-on-ink: #5bb497;
   color-scheme: light;
 }
 
@@ -27,6 +29,7 @@
     --c-expense: #d96a56;
     --c-accent: #5bb497;
     --c-accent-ink: #0f1714;
+    --c-accent-on-ink: #1f6b57;
     color-scheme: dark;
   }
 }
@@ -42,6 +45,7 @@
   --color-expense: var(--c-expense);
   --color-accent: var(--c-accent);
   --color-accent-ink: var(--c-accent-ink);
+  --color-accent-on-ink: var(--c-accent-on-ink);
 }
 
 @layer base {
@@ -83,5 +87,18 @@
   from {
     opacity: 0;
     transform: translateX(-24px);
+  }
+}
+
+/* Undo bar: rises in from just below where it sits. */
+@media (prefers-reduced-motion: no-preference) {
+  .toast-in {
+    animation: toast-in 160ms ease-out;
+  }
+}
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
   }
 }

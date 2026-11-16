@@ -88,7 +88,7 @@ describe('adding an entry', () => {
 });
 
 describe('editing and deleting', () => {
-  it('saves a new amount, then deletes the entry after confirming', async () => {
+  it('saves a new amount, then deletes the entry without asking', async () => {
     await repository.putEntry(entry({}));
     const user = await openApp('#/entry/rent');
 
@@ -101,24 +101,27 @@ describe('editing and deleting', () => {
     const row = (await screen.findByText('Rent')).closest('a')!;
     expect(text(row)).toContain('−1 000,00 €');
 
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const confirm = vi.spyOn(window, 'confirm');
     await user.click(row);
     await user.click(await screen.findByRole('button', { name: 'Delete' }));
 
-    expect(confirm).toHaveBeenCalledWith(`Delete "Rent"? This can't be undone.`);
+    expect(confirm).not.toHaveBeenCalled();
     expect(await screen.findByText('No entries yet')).toBeInTheDocument();
+    expect(screen.getByText('Deleted "Rent"')).toBeInTheDocument();
     expect(await repository.listEntries()).toHaveLength(0);
   });
 
-  it('keeps the entry when the delete is cancelled', async () => {
-    await repository.putEntry(entry({}));
+  it('brings a deleted entry back exactly as it was with Undo', async () => {
+    const rent = entry({ notes: 'Paid by e-invoice' });
+    await repository.putEntry(rent);
     const user = await openApp('#/entry/rent');
-    vi.spyOn(window, 'confirm').mockReturnValue(false);
 
     await user.click(screen.getByRole('button', { name: 'Delete' }));
+    await user.click(await screen.findByRole('button', { name: 'Undo' }));
 
-    expect(screen.getByRole('heading', { name: 'Edit entry' })).toBeInTheDocument();
-    expect(await repository.listEntries()).toHaveLength(1);
+    expect(await screen.findByText('Rent')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument();
+    expect(await repository.listEntries()).toEqual([rent]);
   });
 });
 
@@ -176,6 +179,24 @@ describe('settings', () => {
     await user.click(screen.getAllByRole('link', { name: 'Add entry' })[0]);
     const category = await screen.findByLabelText('Category');
     expect(within(category).getByRole('option', { name: 'Pets' })).toBeInTheDocument();
+  });
+
+  it('deletes a category, and Undo moves its entries back from Other', async () => {
+    const rent = entry({});
+    await repository.putEntry(rent);
+    const user = await openApp('#/settings');
+    const housingRow = () => screen.getByText('Housing').closest('li')!;
+
+    await user.click(within(housingRow()).getByRole('button', { name: 'Delete' }));
+    const undo = await screen.findByRole('button', { name: 'Undo' });
+    expect(screen.queryByText('Housing')).not.toBeInTheDocument();
+    expect(screen.getByText('Deleted "Housing", 1 entry moved to Other')).toBeInTheDocument();
+    expect((await repository.listEntries())[0].categoryId).toBe('other');
+
+    await user.click(undo);
+    expect(await screen.findByText('Housing')).toBeInTheDocument();
+    expect(text(housingRow())).toContain('1 entry');
+    expect(await repository.listEntries()).toEqual([rent]);
   });
 });
 

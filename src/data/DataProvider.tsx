@@ -86,6 +86,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
         await repository.deleteCategory(id, OTHER_CATEGORY_ID);
         await refresh();
       },
+      async restore({ entries: restored = [], categories: restoredCategories = [] }) {
+        for (const c of restoredCategories) await repository.putCategory(c);
+        if (restored.length > 0) await repository.putEntries(restored.map((e) => rollForward(e, todayISO())));
+        await refresh();
+      },
       async replaceAll(data) {
         await repository.replaceAll(data);
         await refresh();

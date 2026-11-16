@@ -14,6 +14,7 @@ import { monthlyEquivalent, yearlyEquivalent } from '../../domain/schedule';
 import { FREQUENCIES, FREQUENCY_LABELS, type Entry } from '../../domain/types';
 import { Field, inputClass, Segmented } from '../components/form';
 import { PageHeader } from '../components/PageHeader';
+import { useUndo } from '../undoContext';
 
 export function EntryPage() {
   const { id } = useParams();
@@ -38,7 +39,8 @@ export function EntryPage() {
 }
 
 function EntryForm({ original }: { original?: Entry }) {
-  const { today, categories, saveEntry, deleteEntry } = useData();
+  const { today, categories, saveEntry, deleteEntry, restore } = useData();
+  const showUndo = useUndo();
   const navigate = useNavigate();
   const location = useLocation();
   const [values, setValues] = useState<EntryFormValues>(() =>
@@ -74,9 +76,10 @@ function EntryForm({ original }: { original?: Entry }) {
 
   const onDelete = async () => {
     if (!original) return;
-    if (!window.confirm(`Delete "${original.name}"? This can't be undone.`)) return;
-    await deleteEntry(original.id);
+    const deleted = original;
+    await deleteEntry(deleted.id);
     goBack();
+    showUndo(`Deleted "${deleted.name}"`, () => restore({ entries: [deleted] }));
   };
 
   const oneTime = values.frequency === 'one-time';

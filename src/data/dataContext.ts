@@ -20,6 +20,8 @@ export interface DataContextValue {
   saveCategory: (category: Category) => Promise<void>;
   deleteCategory: (id: string) => Promise<void>;
   replaceAll: (data: AppData) => Promise<void>;
+  /** Puts deleted or changed records back exactly as they were, for Undo. */
+  restore: (data: Partial<AppData>) => Promise<void>;
 }
 
 export const DataContext = createContext<DataContextValue | null>(null);

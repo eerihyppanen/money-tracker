@@ -6,6 +6,7 @@ import { OTHER_CATEGORY_ID, type Category } from '../../domain/types';
 import { inputClass } from '../components/form';
 import { PageHeader } from '../components/PageHeader';
 import { SectionTitle } from '../components/SectionTitle';
+import { useUndo } from '../undoContext';
 import { download, useBackup } from '../useBackup';
 
 type Status = { kind: 'ok' | 'error'; text: string } | null;
@@ -29,7 +30,8 @@ export function SettingsPage() {
 }
 
 function Categories() {
-  const { categories, entries, saveCategory, deleteCategory } = useData();
+  const { categories, entries, saveCategory, deleteCategory, restore } = useData();
+  const showUndo = useUndo();
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const count = (id: string) => entries.filter((e) => e.categoryId === id).length;
@@ -44,9 +46,11 @@ function Categories() {
   };
 
   const onDelete = async (c: Category) => {
-    const n = count(c.id);
-    const moved = n > 0 ? ` Its ${n} ${n === 1 ? 'entry moves' : 'entries move'} to Other.` : '';
-    if (window.confirm(`Delete the category "${c.name}"?${moved}`)) await deleteCategory(c.id);
+    // Its entries move to Other; keep them as they were so Undo can move them back.
+    const moved = entries.filter((e) => e.categoryId === c.id);
+    await deleteCategory(c.id);
+    const note = moved.length > 0 ? `, ${moved.length} ${moved.length === 1 ? 'entry' : 'entries'} moved to Other` : '';
+    showUndo(`Deleted "${c.name}"${note}`, () => restore({ categories: [c], entries: moved }));
   };
 
   return (
