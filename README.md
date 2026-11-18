@@ -1,46 +1,82 @@
 # Money left over
 
-A personal tracker for recurring expenses and income. It's an installable PWA that works offline and keeps all data on the device (IndexedDB).
+A phone-first app for recurring expenses and income: rent, subscriptions, insurance, salary. It shows what lands each month and how much is left over. It installs to the home screen, works offline and keeps all data on the device.
 
-## Commands
+**[Open the live demo with sample data →](https://eerihyppanen.github.io/money-tracker/#/?sample)**
+
+The demo loads example entries only in a browser that has no data of its own, and nothing ever leaves the device. To start empty, use [the plain link](https://eerihyppanen.github.io/money-tracker/).
+
+<p>
+  <img src="docs/screenshots/overview.png" width="260" alt="Overview: 1 316,62 € left over this month, with a bar split into spent, still due and left over, and the average month below">
+  <img src="docs/screenshots/upcoming-dark.png" width="260" alt="Dark mode: payments due in the next 30 days, with dates, categories and amounts">
+  <img src="docs/screenshots/entries.png" width="260" alt="Entries list with filters, each entry showing its amount plus monthly and yearly equivalents">
+</p>
+
+## What it does
+
+- **This month for real:** what has been paid, what is still due and what is left, from the charges that actually land this month.
+- **Average month:** yearly and quarterly bills spread evenly, so a 480 € insurance counts as 40 € a month.
+- **Next 30 days:** every payment coming up, in date order.
+- **Months view:** step or swipe through past and future months, so you can see expensive months coming before they arrive.
+- **Entries:** filter by type, category and frequency. Each entry shows its original, monthly and yearly amounts.
+- **Your data stays yours:** JSON backup and restore, CSV export for Excel, a reminder when the last backup is old, and Undo after deleting.
+
+## Decisions worth a look
+
+- **Month-end dates keep their day.** A bill on the 31st lands on Feb 28 (or 29 in a leap year) and goes back to the 31st in March. Each entry stores the day it was meant to land on (`anchorDay`) instead of carrying the clamped date forward. See [`src/domain/dates.ts`](src/domain/dates.ts) and [`src/domain/schedule.ts`](src/domain/schedule.ts).
+- **Money in integer cents, dates as `YYYY-MM-DD` text.** This avoids floating-point rounding and time-zone shifts. Only the display uses `Intl`, with Finnish formatting (`1 234,50 €`, `18.11.2026`).
+- **Pure domain logic, with "today" passed in.** Nothing in `src/domain/` reads the clock or touches React or storage, so every rule is easy to test. Due dates that have passed move forward when the app opens or comes back to the foreground.
+- **Storage behind an interface.** The UI talks to a `Repository`. The only implementation today is IndexedDB through Dexie, and the interface is shaped so a synced backend (e.g. Supabase) can replace it without touching the screens.
+- **Offline and installable.** A service worker caches the whole app (about 130 kB compressed), and the app asks the browser for persistent storage so the data isn't cleared to free up space.
+- **Accessible and colour-blind safe.** The expense and income colours were checked to stay distinguishable with colour blindness in both light and dark mode. Amounts never rely on colour alone (they carry a +/− sign or a label), and controls have labels and large touch targets.
+- **Careful with your data.** Restoring a backup validates every field and shows what will be replaced before it does. The CSV export blocks spreadsheet formulas in entry names (`=HYPERLINK(…)` and the like), so a shared file can't run anything.
+
+## Tested
+
+Over 100 automated tests with Vitest:
+
+- **Domain rules:** month ends, leap years, end dates, weekly months with four or five payments, rounding, backups, and the CSV formula guard.
+- **Click-through tests:** the whole app runs in a simulated browser with an in-memory database, and the tests add, edit, delete, undo, swipe between months and load sample data the way a person would.
+
+GitHub Actions runs every test before each deploy to GitHub Pages.
+
+## Tech
+
+React 19 · TypeScript · Vite · Tailwind CSS v4 · Dexie (IndexedDB) · vite-plugin-pwa (Workbox) · React Router · Vitest + Testing Library · GitHub Actions + Pages
+
+Built with Claude Code, an AI coding assistant, as a pair programmer.
+
+## Run it locally
 
 | Command | What it does |
 | --- | --- |
 | `npm install` | Install dependencies |
-| `npm run dev` | Dev server at http://localhost:5173 |
-| `npm test` | Run the unit tests (Vitest) |
+| `npm run dev` | Dev server at http://localhost:5173 (add `#/?sample` for sample data) |
+| `npm test` | Run all tests |
 | `npm run build` | Type-check and build to `dist/` |
 | `npm run preview` | Serve the production build, service worker included |
 | `npx pwa-assets-generator` | Regenerate the app icons from `public/logo.svg` |
 
-## Structure
+## Project structure
 
-- `src/domain/`: pure logic with no React or storage, all unit-tested.
-  - `schedule.ts`: monthly equivalents, due dates, charges per month
-  - `format.ts`: Finnish money and date formatting
+- `src/domain/`: pure logic, all unit-tested.
+  - `schedule.ts`: due dates, monthly equivalents, charges per month
+  - `dates.ts`, `format.ts`: date maths and Finnish formatting
   - `entryForm.ts`, `listing.ts`: form conversion and list filtering
-  - `backup.ts`: JSON backups, CSV export, category names
-- `src/data/`: the `Repository` interface and its Dexie (IndexedDB) implementation. To change the storage backend, change `src/data/index.ts`.
+  - `backup.ts`: JSON backups, CSV export, the backup reminder rule
+  - `sample.ts`: the demo entries, dated from today
+- `src/data/`: the `Repository` interface, its Dexie implementation and the React data context.
 - `src/ui/`: layout, pages and components.
+- `src/test/`: the click-through tests.
 
-## Date rules
+## Ideas for later
 
-- Dates are stored as `YYYY-MM-DD` strings.
-- Month-based entries keep their original day: a monthly entry on the 31st is charged on Feb 28/29 and goes back to the 31st in March.
-- A due date that has passed moves forward automatically when the app opens or comes back to the foreground.
+- Sync between devices, which would also remove the need for manual backups
+- Reminders before payments are due
+- Price history, to show when a subscription got more expensive
+- Marking payments as paid, for bills whose amount varies
 
-## Backups
+## Install on a phone
 
-All data lives in the browser on one device. Settings → **Save backup** downloads a JSON file. **Restore from backup** on another device replaces everything there with that file's contents. **Export CSV** is for spreadsheets only; it uses `;` separators and decimal commas so Finnish Excel reads it correctly.
-
-## Deploying (GitHub Pages)
-
-`.github/workflows/deploy.yml` tests, builds and publishes the app on every push to `master`/`main`. One-time setup:
-
-1. Push the repository to GitHub.
-2. In the repository, go to **Settings → Pages → Build and deployment** and set **Source** to **GitHub Actions**.
-3. Open `https://<your-user>.github.io/<repo>/` on your phone. Then:
-   - **Android (Chrome):** menu → *Add to Home screen* / *Install app*.
-   - **iPhone (Safari):** Share → *Add to Home Screen*.
-
-The site's code is public, but your data never leaves your device.
+- **Android (Chrome):** menu → *Add to Home screen* / *Install app*
+- **iPhone (Safari):** Share → *Add to Home Screen*
