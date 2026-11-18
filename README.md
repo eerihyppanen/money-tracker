@@ -12,6 +12,10 @@ The demo loads example entries only in a browser that has no data of its own, an
   <img src="docs/screenshots/entries.png" width="260" alt="Entries list with filters, each entry showing its amount plus monthly and yearly equivalents">
 </p>
 
+## Why I built it
+
+I built this to solve my own problem: I wanted to see all my subscriptions and recurring bills in one place, and how much of my money they take each month.
+
 ## What it does
 
 - **This month for real:** what has been paid, what is still due and what is left, from the charges that actually land this month.
