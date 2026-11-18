@@ -77,6 +77,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
         await repository.deleteEntry(id);
         await refresh();
       },
+      async deleteEntries(ids) {
+        for (const id of ids) await repository.deleteEntry(id);
+        await refresh();
+      },
       async saveCategory(category) {
         await repository.putCategory(category);
         await refresh();

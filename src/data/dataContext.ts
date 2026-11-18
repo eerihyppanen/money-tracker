@@ -17,6 +17,7 @@ export interface DataContextValue {
   categoryName: (id: string) => string;
   saveEntry: (entry: Entry) => Promise<void>;
   deleteEntry: (id: string) => Promise<void>;
+  deleteEntries: (ids: string[]) => Promise<void>;
   saveCategory: (category: Category) => Promise<void>;
   deleteCategory: (id: string) => Promise<void>;
   replaceAll: (data: AppData) => Promise<void>;

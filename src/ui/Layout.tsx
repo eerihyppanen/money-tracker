@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useData } from '../data/dataContext';
 import { CalendarIcon, ListIcon, OverviewIcon, PlusIcon, SettingsIcon } from './components/icons';
+import { SampleLink } from './SampleLink';
 import { UndoProvider } from './UndoProvider';
 
 const NAV = [
@@ -24,6 +25,7 @@ export function Layout() {
 
   return (
     <UndoProvider>
+      <SampleLink />
       <div className="min-h-dvh md:flex">
         {/* Sidebar on wide screens */}
         <aside className="hidden md:flex md:w-60 md:shrink-0 md:flex-col md:gap-6 md:border-r md:border-line md:px-4 md:py-6 md:sticky md:top-0 md:h-dvh">

@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useData } from '../../data/dataContext';
 import { backupReminder } from '../../domain/backup';
+import { isSample } from '../../domain/sample';
 import { formatCents, formatMonth } from '../../domain/format';
 import { averageMonth, byCategory, isEnded, monthProgress, upcoming, type Totals } from '../../domain/schedule';
 import type { Entry } from '../../domain/types';
@@ -10,6 +11,7 @@ import { PageHeader } from '../components/PageHeader';
 import { SectionTitle } from '../components/SectionTitle';
 import { MonthStrip } from '../overview/MonthStrip';
 import { useBackup } from '../useBackup';
+import { useSampleData } from '../useSampleData';
 
 export function OverviewPage() {
   const { entries, today } = useData();
@@ -25,7 +27,7 @@ export function OverviewPage() {
         <Welcome />
       ) : (
         <div className="flex flex-col gap-10">
-          <BackupReminder />
+          {entries.some(isSample) ? <SampleNotice /> : <BackupReminder />}
           <MonthStrip
             progress={progress}
             caption={
@@ -126,7 +128,21 @@ function BackupReminder() {
   );
 }
 
+/** Shown instead of the backup reminder while the example entries are loaded. */
+function SampleNotice() {
+  const { remove } = useSampleData();
+  return (
+    <p className="-mt-4 -mb-6 flex items-center justify-between gap-3 text-sm text-muted">
+      <span>You're looking at sample data.</span>
+      <button type="button" onClick={() => void remove()} className="-mr-2 shrink-0 px-2 py-2.5 font-medium text-accent">
+        Remove it
+      </button>
+    </p>
+  );
+}
+
 function Welcome() {
+  const { load } = useSampleData();
   return (
     <div className="rounded-2xl border border-dashed border-line px-6 py-10">
       <p className="text-xl font-semibold tracking-tight">See what's left over each month</p>
@@ -134,12 +150,18 @@ function Welcome() {
         Add your salary and your recurring costs, like rent, subscriptions and insurance. This page then
         shows what lands this month, what's coming up and what an average month looks like.
       </p>
-      <Link
-        to="/entry/new"
-        className="mt-5 inline-block rounded-xl bg-accent px-4 py-2.5 font-medium text-accent-ink"
-      >
-        Add your first entry
-      </Link>
+      <div className="mt-5 flex flex-wrap gap-2">
+        <Link to="/entry/new" className="rounded-xl bg-accent px-4 py-2.5 font-medium text-accent-ink">
+          Add your first entry
+        </Link>
+        <button
+          type="button"
+          onClick={() => void load()}
+          className="rounded-xl border border-line bg-surface px-4 py-2.5 font-medium hover:border-accent"
+        >
+          Try with sample data
+        </button>
+      </div>
     </div>
   );
 }

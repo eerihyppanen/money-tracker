@@ -233,3 +233,32 @@ describe('backup reminder', () => {
     expect(screen.getByText('Last backup 30 days ago.')).toBeInTheDocument();
   });
 });
+
+describe('sample data', () => {
+  it('can be tried from the empty overview and removed again', async () => {
+    const user = await openApp('#/');
+    await user.click(screen.getByRole('button', { name: 'Try with sample data' }));
+
+    expect(await screen.findByText("You're looking at sample data.")).toBeInTheDocument();
+    expect(screen.queryByText(/backed up yet/)).not.toBeInTheDocument();
+    expect(text(screen.getByRole('region', { name: 'Next 30 days' }))).toContain('Salary');
+
+    await user.click(screen.getByRole('button', { name: 'Remove it' }));
+    expect(await screen.findByRole('button', { name: 'Try with sample data' })).toBeInTheDocument();
+    expect(await repository.listEntries()).toHaveLength(0);
+  });
+
+  it('opens straight into sample data from a demo link', async () => {
+    await openApp('#/list?sample');
+    expect(await screen.findByText('Freelance invoices')).toBeInTheDocument();
+    expect(window.location.hash).toBe('#/list');
+  });
+
+  it('never mixes sample data into real entries', async () => {
+    await repository.putEntry(entry({}));
+    await openApp('#/list?sample');
+    expect(await screen.findByText('Rent')).toBeInTheDocument();
+    expect(screen.queryByText('Freelance invoices')).not.toBeInTheDocument();
+    expect(await repository.listEntries()).toHaveLength(1);
+  });
+});
