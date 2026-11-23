@@ -62,6 +62,21 @@ describe('more than one tab', () => {
     await waitFor(() => expect(a.data!.entries.map((e) => e.name)).toEqual(['Rent']));
   });
 
+  it("refuses an Undo after another tab restored a backup, even before that tab's message arrives", async () => {
+    const a = openTab();
+    const b = openTab();
+    await waitFor(() => expect(a.data!.loading || b.data!.loading).toBe(false));
+    await a.data!.saveEntry(rent);
+
+    const deleted = await a.data!.deleteEntry('rent');
+    const gym = { ...rent, id: 'gym', name: 'Gym' };
+    await b.data!.replaceAll({ entries: [gym], categories: DEFAULT_CATEGORIES });
+    // Tab A undoes at once: its own counter may not know about B yet, but storage does.
+    expect(await a.data!.restore({ entries: [rent] }, deleted)).toBeNull();
+
+    expect((await repository.listEntries()).map((e) => e.id)).toEqual(['gym']);
+  });
+
   it("a tab's own change does not count as someone else's", async () => {
     const a = openTab();
     openTab();

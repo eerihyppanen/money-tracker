@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { todayISO } from '../domain/dates';
 import { rollForward } from '../domain/schedule';
 import { OTHER_CATEGORY_ID, type Category, type Entry } from '../domain/types';
-import { DataContext, type DataContextValue } from './dataContext';
+import { DataContext, type Change, type DataContextValue } from './dataContext';
 import { repository } from './index';
 import { ensurePersistentStorage, type StorageStatus } from './persistence';
 
@@ -110,6 +110,24 @@ export function DataProvider({ children, onWrite }: { children: ReactNode; onWri
 
   const value = useMemo<DataContextValue>(() => {
     const names = new Map(categories.map((c) => [c.id, c.name]));
+
+    /** One change: closes a pending Undo, stores it, tells other tabs, reloads. */
+    const write = async (store: () => Promise<number>): Promise<Change> => {
+      const tab = beginWrite();
+      const stored = await store();
+      otherTabs.current?.postMessage('changed');
+      await refresh();
+      return { tab, stored };
+    };
+    /** Like `write`, for an Undo that storage refuses (null) when something changed since. */
+    const writeIfLatest = async (store: () => Promise<number | null>): Promise<Change | null> => {
+      const tab = beginWrite();
+      const stored = await store();
+      if (stored !== null) otherTabs.current?.postMessage('changed');
+      await refresh();
+      return stored === null ? null : { tab, stored };
+    };
+
     return {
       loading,
       error,
@@ -121,68 +139,32 @@ export function DataProvider({ children, onWrite }: { children: ReactNode; onWri
       entries,
       categories,
       categoryName: (id) => names.get(id) ?? 'Other',
-      isLatestWrite: (version) => version === writeCount.current,
-      async saveEntry(entry) {
-        const version = beginWrite();
-        const stamped = { ...entry, updatedAt: new Date().toISOString() };
-        await repository.putEntry(rollForward(stamped, todayISO()));
-        otherTabs.current?.postMessage('changed');
-        await refresh();
-        return version;
-      },
-      async deleteEntry(id) {
-        const version = beginWrite();
-        await repository.deleteEntry(id);
-        otherTabs.current?.postMessage('changed');
-        await refresh();
-        return version;
-      },
-      async deleteEntries(ids) {
-        const version = beginWrite();
-        for (const id of ids) await repository.deleteEntry(id);
-        otherTabs.current?.postMessage('changed');
-        await refresh();
-        return version;
-      },
-      async saveCategory(category) {
-        const version = beginWrite();
-        await repository.putCategory(category);
-        otherTabs.current?.postMessage('changed');
-        await refresh();
-        return version;
-      },
+      isLatestWrite: (change) => change.tab === writeCount.current,
+      saveEntry: (entry) =>
+        write(() => repository.putEntry(rollForward({ ...entry, updatedAt: new Date().toISOString() }, todayISO()))),
+      deleteEntry: (id) => write(() => repository.deleteEntry(id)),
+      deleteEntries: (ids) => write(() => repository.deleteEntries(ids)),
+      saveCategory: (category) => write(() => repository.putCategory(category)),
       async deleteCategory(id) {
-        const version = beginWrite();
         if (id === OTHER_CATEGORY_ID) throw new Error('The Other category cannot be deleted.');
-        await repository.deleteCategory(id, OTHER_CATEGORY_ID);
-        otherTabs.current?.postMessage('changed');
-        await refresh();
-        return version;
-      },
-      async restore({ entries: restored = [], categories: restoredCategories = [] }) {
-        const version = beginWrite();
-        await repository.restoreMissing({
-          categories: restoredCategories,
-          entries: restored.map((e) => rollForward(e, todayISO())),
+        let movedEntryIds: string[] = [];
+        const change = await write(async () => {
+          const result = await repository.deleteCategory(id, OTHER_CATEGORY_ID);
+          movedEntryIds = result.movedEntryIds;
+          return result.change;
         });
-        otherTabs.current?.postMessage('changed');
-        await refresh();
-        return version;
+        return { ...change, movedEntryIds };
       },
-      async undoCategoryDelete(category, entryIds) {
-        const version = beginWrite();
-        await repository.undoCategoryDelete(category, entryIds, OTHER_CATEGORY_ID);
-        otherTabs.current?.postMessage('changed');
-        await refresh();
-        return version;
-      },
-      async replaceAll(data) {
-        const version = beginWrite();
-        await repository.replaceAll(data);
-        otherTabs.current?.postMessage('changed');
-        await refresh();
-        return version;
-      },
+      replaceAll: (data) => write(() => repository.replaceAll(data)),
+      restore: ({ entries: restored = [], categories: restoredCategories = [] }, after) =>
+        writeIfLatest(() =>
+          repository.restoreMissing(
+            { categories: restoredCategories, entries: restored.map((e) => rollForward(e, todayISO())) },
+            after?.stored,
+          ),
+        ),
+      undoCategoryDelete: (category, entryIds, after) =>
+        writeIfLatest(() => repository.undoCategoryDelete(category, entryIds, OTHER_CATEGORY_ID, after.stored)),
     };
   }, [loading, error, storageStatus, today, entries, categories, refresh, beginWrite]);
 

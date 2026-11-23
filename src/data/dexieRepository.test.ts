@@ -1,3 +1,4 @@
+import Dexie from 'dexie';
 import { describe, expect, it } from 'vitest';
 import type { Entry } from '../domain/types';
 import { createDexieRepository } from './dexieRepository';
@@ -73,29 +74,82 @@ describe('Undo in storage', () => {
     expect(byId.gym).toEqual(gym);
   });
 
-  it('undoCategoryDelete moves back only the category, and only for entries still in Other', async () => {
+  it('deleteCategory reports only the entries it really moved', async () => {
     const repo = await freshRepository();
-    await repo.putEntries([rent, { ...rent, id: 'water', name: 'Water' }]);
-    await repo.deleteCategory('housing', 'other');
+    // Water was already moved from Housing to Other (say, in another tab) before the delete.
+    await repo.putEntries([rent, { ...rent, id: 'water', name: 'Water', categoryId: 'other' }]);
 
-    // Meanwhile, in another tab: Rent gets a new amount, Water is moved to Food.
-    await repo.putEntry({ ...rent, categoryId: 'other', amountCents: 100000 });
-    const water = (await repo.listEntries()).find((e) => e.id === 'water')!;
-    await repo.putEntry({ ...water, categoryId: 'food' });
+    const { movedEntryIds } = await repo.deleteCategory('housing', 'other');
 
-    await repo.undoCategoryDelete(housing, ['rent', 'water'], 'other');
+    expect(movedEntryIds).toEqual(['rent']);
+  });
+
+  it('undoCategoryDelete brings back the category and only the entries the delete moved', async () => {
+    const repo = await freshRepository();
+    await repo.putEntries([rent, { ...rent, id: 'water', name: 'Water', categoryId: 'other' }]);
+    const { change, movedEntryIds } = await repo.deleteCategory('housing', 'other');
+
+    expect(await repo.undoCategoryDelete(housing, movedEntryIds, 'other', change)).toBe(change + 1);
 
     const byId = Object.fromEntries((await repo.listEntries()).map((e) => [e.id, e]));
-    expect(byId.rent).toMatchObject({ categoryId: 'housing', amountCents: 100000 });
-    expect(byId.water.categoryId).toBe('food');
+    expect(byId.rent.categoryId).toBe('housing');
+    expect(byId.water.categoryId).toBe('other'); // it was in Other before the delete
     expect((await repo.listCategories()).some((c) => c.id === 'housing')).toBe(true);
   });
 
-  it('undoCategoryDelete keeps a category that already exists again', async () => {
+  it('refuses a category Undo once anything has changed since, even in another tab', async () => {
     const repo = await freshRepository();
-    await repo.deleteCategory('housing', 'other');
-    await repo.putCategory({ ...housing, name: 'Home' }); // re-created and renamed elsewhere
-    await repo.undoCategoryDelete(housing, [], 'other');
-    expect((await repo.listCategories()).find((c) => c.id === 'housing')!.name).toBe('Home');
+    await repo.putEntry(rent);
+    const { change, movedEntryIds } = await repo.deleteCategory('housing', 'other');
+    await repo.putEntry({ ...rent, categoryId: 'other', amountCents: 100000 }); // another tab
+
+    expect(await repo.undoCategoryDelete(housing, movedEntryIds, 'other', change)).toBeNull();
+
+    expect(await repo.listEntries()).toMatchObject([{ categoryId: 'other', amountCents: 100000 }]);
+    expect((await repo.listCategories()).some((c) => c.id === 'housing')).toBe(false);
+  });
+
+  it('refuses to put a deleted entry back into a backup restored since', async () => {
+    const repo = await freshRepository();
+    await repo.putEntry(rent);
+    const change = await repo.deleteEntry('rent');
+    const gym = { ...rent, id: 'gym', name: 'Gym' };
+    await repo.replaceAll({ entries: [gym], categories: [housing] }); // another tab restores a backup
+
+    expect(await repo.restoreMissing({ entries: [rent] }, change)).toBeNull();
+    expect(await repo.listEntries()).toEqual([gym]);
+  });
+
+  it('puts a deleted entry back while nothing has changed since', async () => {
+    const repo = await freshRepository();
+    await repo.putEntry(rent);
+    const change = await repo.deleteEntry('rent');
+    expect(await repo.restoreMissing({ entries: [rent] }, change)).toBe(change + 1);
+    expect(await repo.listEntries()).toEqual([rent]);
+  });
+});
+
+describe('change numbers', () => {
+  it('go up with every change and not with the automatic due-date update', async () => {
+    const repo = await freshRepository();
+    const first = await repo.putEntry(rent);
+    expect(await repo.putCategory({ id: 'pets', name: 'Pets', isDefault: false })).toBe(first + 1);
+    await repo.advanceDueDates('2026-11-11');
+    expect(await repo.deleteEntry('rent')).toBe(first + 2);
+  });
+
+  it('are added to an existing database without touching its data', async () => {
+    const name = `repository-test-upgrade-${++dbCount}`;
+    const old = new Dexie(name);
+    old.version(1).stores({ entries: 'id, type, categoryId, frequency, nextDueDate', categories: 'id' });
+    await old.table('entries').put(rent);
+    await old.table('categories').put({ id: 'housing', name: 'Housing', isDefault: true });
+    old.close();
+
+    const repo = createDexieRepository(name);
+    await repo.init();
+    expect(await repo.listEntries()).toEqual([rent]);
+    expect(await repo.listCategories()).toEqual([{ id: 'housing', name: 'Housing', isDefault: true }]);
+    expect(await repo.putEntry(rent)).toBe(1);
   });
 });

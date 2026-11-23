@@ -276,7 +276,7 @@ describe('settings', () => {
     expect((await repository.listEntries()).map((e) => e.name)).toEqual(['Gym']);
   });
 
-  it('undoing a category delete keeps an amount changed in another tab', async () => {
+  it('does nothing on Undo once another tab has changed something, keeping that change', async () => {
     const rent = entry({});
     await repository.putEntry(rent);
     const user = await openApp('#/settings');
@@ -287,8 +287,24 @@ describe('settings', () => {
     await repository.putEntry({ ...rent, categoryId: 'other', amountCents: 100000 });
 
     await user.click(undo);
+    await new Promise((r) => setTimeout(r, 50));
+    expect(screen.queryByText('Housing')).not.toBeInTheDocument();
+    expect(await repository.listEntries()).toMatchObject([{ categoryId: 'other', amountCents: 100000 }]);
+  });
+
+  it('Undo moves back only what the delete moved, even if this page was out of date', async () => {
+    await repository.putEntry(entry({}));
+    const user = await openApp('#/settings');
+    expect(text(screen.getByText('Housing').closest('li')!)).toContain('1 entry');
+
+    // Another tab already moved Rent to Other; this page still shows Housing with 1 entry.
+    await repository.putEntry(entry({ categoryId: 'other' }));
+
+    await user.click(within(screen.getByText('Housing').closest('li')!).getByRole('button', { name: 'Delete' }));
+    await user.click(await screen.findByRole('button', { name: 'Undo' }));
+
     expect(await screen.findByText('Housing')).toBeInTheDocument();
-    expect(await repository.listEntries()).toMatchObject([{ categoryId: 'housing', amountCents: 100000 }]);
+    expect((await repository.listEntries())[0].categoryId).toBe('other');
   });
 
   it('deletes a category, and Undo moves its entries back from Other', async () => {

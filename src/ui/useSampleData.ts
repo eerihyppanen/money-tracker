@@ -20,8 +20,8 @@ export function useSampleData() {
 
   const remove = async () => {
     const removed = samples;
-    const version = await deleteEntries(removed.map((e) => e.id));
-    showUndo('Removed the sample data', () => restore({ entries: removed }), () => isLatestWrite(version));
+    const change = await deleteEntries(removed.map((e) => e.id));
+    showUndo('Removed the sample data', () => restore({ entries: removed }, change), () => isLatestWrite(change));
   };
 
   return { hasSample: samples.length > 0, load, remove };

@@ -47,11 +47,16 @@ function Categories() {
   };
 
   const onDelete = async (c: Category) => {
-    // Its entries move to Other; remember which ones, so Undo can move them back.
-    const moved = entries.filter((e) => e.categoryId === c.id);
-    const version = await deleteCategory(c.id);
-    const note = moved.length > 0 ? `, ${moved.length} ${moved.length === 1 ? 'entry' : 'entries'} moved to Other` : '';
-    showUndo(`Deleted "${c.name}"${note}`, () => undoCategoryDelete(c, moved.map((e) => e.id)), () => isLatestWrite(version));
+    // The delete reports which entries it really moved to Other (this page may be out of
+    // date if another tab changed something), and Undo moves back exactly those.
+    const change = await deleteCategory(c.id);
+    const n = change.movedEntryIds.length;
+    const note = n > 0 ? `, ${n} ${n === 1 ? 'entry' : 'entries'} moved to Other` : '';
+    showUndo(
+      `Deleted "${c.name}"${note}`,
+      () => undoCategoryDelete(c, change.movedEntryIds, change),
+      () => isLatestWrite(change),
+    );
   };
 
   return (

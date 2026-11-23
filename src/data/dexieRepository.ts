@@ -3,9 +3,18 @@ import { rollForward } from '../domain/schedule';
 import { DEFAULT_CATEGORIES, type Category, type Entry } from '../domain/types';
 import type { AppData, Repository } from './repository';
 
+/** Small bookkeeping values kept with the data, such as the change number. */
+interface Meta {
+  key: string;
+  value: number;
+}
+
+const CHANGE = 'change';
+
 class TrackerDB extends Dexie {
   entries!: EntityTable<Entry, 'id'>;
   categories!: EntityTable<Category, 'id'>;
+  meta!: EntityTable<Meta, 'key'>;
 
   constructor(name: string) {
     super(name);
@@ -13,12 +22,33 @@ class TrackerDB extends Dexie {
       entries: 'id, type, categoryId, frequency, nextDueDate',
       categories: 'id',
     });
+    // Version 2 adds the change number; existing data is kept as it is.
+    this.version(2).stores({
+      entries: 'id, type, categoryId, frequency, nextDueDate',
+      categories: 'id',
+      meta: 'key',
+    });
   }
 }
 
 /** IndexedDB storage. This is the only file that knows about Dexie. */
 export function createDexieRepository(dbName = 'money-tracker'): Repository {
   const db = new TrackerDB(dbName);
+
+  // Both must run inside a transaction that includes db.meta.
+  const latestChange = async () => (await db.meta.get(CHANGE))?.value ?? 0;
+  const nextChange = async () => {
+    const change = (await latestChange()) + 1;
+    await db.meta.put({ key: CHANGE, value: change });
+    return change;
+  };
+
+  /** Runs `work` and records it as a change, all in one transaction. */
+  const change = (tables: Dexie.Table[], work: () => Promise<unknown>) =>
+    db.transaction('rw', [...tables, db.meta], async () => {
+      await work();
+      return nextChange();
+    });
 
   return {
     async init() {
@@ -30,13 +60,54 @@ export function createDexieRepository(dbName = 'money-tracker'): Repository {
     },
 
     listEntries: () => db.entries.toArray(),
-    putEntry: async (entry) => {
-      await db.entries.put(entry);
+    listCategories: () => db.categories.toArray(),
+
+    putEntry: (entry) => change([db.entries], () => db.entries.put(entry)),
+    putEntries: (entries) => change([db.entries], () => db.entries.bulkPut(entries)),
+    deleteEntry: (id) => change([db.entries], () => db.entries.delete(id)),
+    deleteEntries: (ids) => change([db.entries], () => db.entries.bulkDelete(ids)),
+    putCategory: (category) => change([db.categories], () => db.categories.put(category)),
+
+    deleteCategory(id, fallbackCategoryId) {
+      return db.transaction('rw', db.entries, db.categories, db.meta, async () => {
+        // The entries really in the category now, not what some screen showed earlier.
+        const movedEntryIds = (await db.entries.where('categoryId').equals(id).primaryKeys()) as string[];
+        await db.entries.where(':id').anyOf(movedEntryIds).modify({ categoryId: fallbackCategoryId });
+        await db.categories.delete(id);
+        return { change: await nextChange(), movedEntryIds };
+      });
     },
-    putEntries: async (entries) => {
-      await db.entries.bulkPut(entries);
+
+    replaceAll: (data: AppData) =>
+      change([db.entries, db.categories], async () => {
+        await db.entries.clear();
+        await db.categories.clear();
+        await db.categories.bulkAdd(data.categories);
+        await db.entries.bulkAdd(data.entries);
+      }),
+
+    restoreMissing({ entries = [], categories = [] }, ifLatest) {
+      return db.transaction('rw', db.entries, db.categories, db.meta, async () => {
+        if (ifLatest !== undefined && (await latestChange()) !== ifLatest) return null;
+        for (const c of categories) if (!(await db.categories.get(c.id))) await db.categories.add(c);
+        for (const e of entries) if (!(await db.entries.get(e.id))) await db.entries.add(e);
+        return nextChange();
+      });
     },
-    deleteEntry: (id) => db.entries.delete(id),
+
+    undoCategoryDelete(category, entryIds, fromCategoryId, ifLatest) {
+      return db.transaction('rw', db.entries, db.categories, db.meta, async () => {
+        if ((await latestChange()) !== ifLatest) return null;
+        if (!(await db.categories.get(category.id))) await db.categories.add(category);
+        await db.entries
+          .where(':id')
+          .anyOf(entryIds)
+          .filter((e) => e.categoryId === fromCategoryId)
+          .modify({ categoryId: category.id });
+        return nextChange();
+      });
+    },
+
     async advanceDueDates(today) {
       await db.transaction('rw', db.entries, async () => {
         await db.entries
@@ -45,44 +116,6 @@ export function createDexieRepository(dbName = 'money-tracker'): Repository {
           .modify((entry) => {
             entry.nextDueDate = rollForward(entry, today).nextDueDate;
           });
-      });
-    },
-
-    listCategories: () => db.categories.toArray(),
-    putCategory: async (category) => {
-      await db.categories.put(category);
-    },
-    async deleteCategory(id, fallbackCategoryId) {
-      await db.transaction('rw', db.entries, db.categories, async () => {
-        await db.entries.where('categoryId').equals(id).modify({ categoryId: fallbackCategoryId });
-        await db.categories.delete(id);
-      });
-    },
-
-    async restoreMissing({ entries = [], categories = [] }) {
-      await db.transaction('rw', db.entries, db.categories, async () => {
-        for (const c of categories) if (!(await db.categories.get(c.id))) await db.categories.add(c);
-        for (const e of entries) if (!(await db.entries.get(e.id))) await db.entries.add(e);
-      });
-    },
-
-    async undoCategoryDelete(category, entryIds, fromCategoryId) {
-      await db.transaction('rw', db.entries, db.categories, async () => {
-        if (!(await db.categories.get(category.id))) await db.categories.add(category);
-        await db.entries
-          .where(':id')
-          .anyOf(entryIds)
-          .filter((e) => e.categoryId === fromCategoryId)
-          .modify({ categoryId: category.id });
-      });
-    },
-
-    async replaceAll(data: AppData) {
-      await db.transaction('rw', db.entries, db.categories, async () => {
-        await db.entries.clear();
-        await db.categories.clear();
-        await db.categories.bulkAdd(data.categories);
-        await db.entries.bulkAdd(data.entries);
       });
     },
   };

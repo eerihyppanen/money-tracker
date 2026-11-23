@@ -80,8 +80,8 @@ function EntryForm({ original }: { original?: Entry }) {
     const deleted = original;
     // Leave first: deleting while still here would flash the "Entry not found" page.
     goBack();
-    const version = await deleteEntry(deleted.id);
-    showUndo(`Deleted "${deleted.name}"`, () => restore({ entries: [deleted] }), () => isLatestWrite(version));
+    const change = await deleteEntry(deleted.id);
+    showUndo(`Deleted "${deleted.name}"`, () => restore({ entries: [deleted] }, change), () => isLatestWrite(change));
   };
 
   const oneTime = values.frequency === 'one-time';
