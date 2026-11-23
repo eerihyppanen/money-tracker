@@ -258,8 +258,9 @@ export function expensesByCategory(charges: Charge[]): { categoryId: string; cen
  */
 export function nextPayment(entry: Entry, today: ISODate): ISODate | null {
   if (entry.frequency === 'one-time') return entry.nextDueDate;
-  // Payments before the start date don't count, as in occurrencesInRange.
+  // Exactly the calendar's rule (occurrencesInRange): the first occurrence on or after today and
+  // the start date, counted both ways from the stored due date, and none after the end date.
   const from = maxDate(today, entry.startDate);
-  const next = entry.nextDueDate >= from ? entry.nextDueDate : occurrence(entry, firstIndexOnOrAfter(entry, from));
+  const next = occurrence(entry, firstIndexOnOrAfter(entry, from));
   return entry.endDate !== undefined && next > entry.endDate ? null : next;
 }

@@ -3,6 +3,7 @@ import { DEFAULT_LIST_FILTER, filterAndSort, parseListFilter, type ListFilter } 
 import type { Entry } from './types';
 
 function entry(id: string, overrides: Partial<Entry> = {}): Entry {
+  const nextDueDate = overrides.nextDueDate ?? '2026-12-01';
   return {
     id,
     name: id,
@@ -10,8 +11,9 @@ function entry(id: string, overrides: Partial<Entry> = {}): Entry {
     type: 'expense',
     frequency: 'monthly',
     categoryId: 'other',
-    nextDueDate: '2026-12-01',
-    anchorDay: 1,
+    nextDueDate,
+    // The payment day matches the due date, as it does for entries saved by the app.
+    anchorDay: Number(nextDueDate.slice(8, 10)),
     startDate: '2026-01-01',
     active: true,
     createdAt: '',

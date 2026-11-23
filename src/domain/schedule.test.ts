@@ -461,3 +461,31 @@ describe('ending before the next charge', () => {
     expect(nextPayment(entry({ frequency: 'one-time', nextDueDate: '2026-10-03' }), '2026-11-11')).toBe('2026-10-03');
   });
 });
+
+describe('nextPayment agrees with the calendar', () => {
+  it('finds a charge before the stored due date when the entry ends in between', () => {
+    // Billed on the 20th, stored due date 20.12., ends 30.11.: the calendar still has 20.11.
+    const endsSoon = entry({ nextDueDate: '2026-12-20', startDate: '2026-01-01', endDate: '2026-11-30' });
+    expect(monthSummary([endsSoon], 2026, 11).charges.map((c) => c.date)).toEqual(['2026-11-20']);
+    expect(nextPayment(endsSoon, '2026-11-11')).toBe('2026-11-20');
+  });
+
+  it('always equals the first calendar charge from today', () => {
+    const today = '2026-11-11';
+    const frequencies = ['weekly', 'monthly', 'quarterly', 'semi-annually', 'yearly'] as const;
+    const stored = ['2026-10-31', '2026-11-11', '2026-11-20', '2026-12-20', '2027-01-31', '2027-03-15'];
+    const starts = ['2020-01-01', '2026-11-15', '2027-02-01'];
+    const ends = [undefined, '2026-11-10', '2026-11-30', '2026-12-31', '2027-06-30'];
+    let checked = 0;
+    for (const frequency of frequencies)
+      for (const nextDueDate of stored)
+        for (const startDate of starts)
+          for (const endDate of ends) {
+            const e = entry({ frequency, nextDueDate, startDate, endDate });
+            const calendar = occurrencesInRange(e, today, '2030-12-31')[0]?.date ?? null;
+            expect(nextPayment(e, today), JSON.stringify({ frequency, nextDueDate, startDate, endDate })).toBe(calendar);
+            checked++;
+          }
+    expect(checked).toBe(450);
+  });
+});
