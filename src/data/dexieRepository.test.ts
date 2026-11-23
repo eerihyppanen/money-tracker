@@ -146,6 +146,26 @@ describe('Undo in storage', () => {
 });
 
 describe('change numbers', () => {
+  it('stay the same when a delete finds nothing to delete', async () => {
+    const repo = await freshRepository();
+    await repo.putEntry(rent);
+    const first = await repo.deleteEntry('rent');
+    // Another tab deletes the same entry a moment later: nothing left to delete.
+    const second = await repo.deleteEntry('rent');
+    expect(second).toEqual({ change: first.change, deleted: [] });
+    // So the delete that really happened can still be undone.
+    expect(await repo.restoreMissing({ entries: first.deleted }, first.change)).toBe(first.change + 1);
+  });
+
+  it('stay the same when a category is deleted twice', async () => {
+    const repo = await freshRepository();
+    await repo.putEntry(rent);
+    const first = await repo.deleteCategory('housing', 'other');
+    const second = await repo.deleteCategory('housing', 'other');
+    expect(second).toEqual({ change: first.change, deleted: null, movedEntryIds: [] });
+    expect(await repo.undoCategoryDelete(first.deleted!, first.movedEntryIds, 'other', first.change)).toBe(first.change + 1);
+  });
+
   it('go up with every change and not with the automatic due-date update', async () => {
     const repo = await freshRepository();
     const first = await repo.putEntry(rent);

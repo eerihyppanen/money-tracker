@@ -54,6 +54,8 @@ export function createDexieRepository(dbName = 'money-tracker'): Repository {
   const deleteEntries = (ids: string[]) =>
     db.transaction('rw', db.entries, db.meta, async () => {
       const deleted = (await db.entries.bulkGet(ids)).filter((e): e is Entry => e !== undefined);
+      // Nothing there (e.g. another tab deleted it first): no change, so that tab's Undo still works.
+      if (deleted.length === 0) return { change: await latestChange(), deleted };
       await db.entries.bulkDelete(ids);
       return { change: await nextChange(), deleted };
     });
@@ -81,6 +83,7 @@ export function createDexieRepository(dbName = 'money-tracker'): Repository {
         // The entries really in the category now, not what some screen showed earlier.
         const deleted = (await db.categories.get(id)) ?? null;
         const movedEntryIds = (await db.entries.where('categoryId').equals(id).primaryKeys()) as string[];
+        if (!deleted && movedEntryIds.length === 0) return { change: await latestChange(), deleted, movedEntryIds };
         await db.entries.where(':id').anyOf(movedEntryIds).modify({ categoryId: fallbackCategoryId });
         await db.categories.delete(id);
         return { change: await nextChange(), deleted, movedEntryIds };

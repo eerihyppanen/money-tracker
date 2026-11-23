@@ -14,7 +14,8 @@ export interface AppData {
  * stored with the data, in the same transaction, and returns the new value. An Undo passes back
  * the number its delete returned (`ifLatest`) and only goes ahead, inside its own transaction,
  * while that is still the latest change. So an Undo can never mix old data into anything saved
- * since: in this tab, in another tab, or by restoring a backup.
+ * since: in this tab, in another tab, or by restoring a backup. A delete that finds nothing to
+ * delete changes nothing and keeps the number as it is.
  */
 export interface Repository {
   /** Creates the default categories on first run. Safe to call every start. */
