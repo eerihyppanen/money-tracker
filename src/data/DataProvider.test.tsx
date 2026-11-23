@@ -77,6 +77,30 @@ describe('more than one tab', () => {
     expect((await repository.listEntries()).map((e) => e.id)).toEqual(['gym']);
   });
 
+  it('a late message about an older change does not cancel a newer Undo', async () => {
+    const a = openTab();
+    const b = openTab();
+    await waitFor(() => expect(a.data!.loading || b.data!.loading).toBe(false));
+    await b.data!.saveEntry({ ...rent, id: 'gym', name: 'Gym' });
+    const deleted = await b.data!.deleteEntry('gym');
+    await new Promise((r) => setTimeout(r, 50));
+    b.onWrite.mockClear();
+
+    // Another tab's message about a change stored *before* B's delete arrives late.
+    const otherTab = new BroadcastChannel('money-tracker:changes');
+    otherTab.postMessage({ change: deleted.stored - 1 });
+    await new Promise((r) => setTimeout(r, 50));
+    expect(b.onWrite).not.toHaveBeenCalled();
+    expect(b.data!.isLatestWrite(deleted)).toBe(true);
+
+    // A message about a newer change does cancel it.
+    otherTab.postMessage({ change: deleted.stored + 1 });
+    await waitFor(() => expect(b.data!.isLatestWrite(deleted)).toBe(false));
+    expect(b.onWrite).toHaveBeenCalled();
+    otherTab.close();
+    void a;
+  });
+
   it("a tab's own change does not count as someone else's", async () => {
     const a = openTab();
     openTab();

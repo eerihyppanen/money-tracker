@@ -28,14 +28,21 @@ export function DataProvider({ children, onWrite }: { children: ReactNode; onWri
   const dayRef = useRef(today);
 
   /**
-   * Every change made through the context gets the next number, after closing any pending
-   * Undo. An Undo is only offered while its delete is still the latest change (isLatestWrite).
+   * An Undo is only offered while its delete is still the latest change (isLatestWrite):
+   * - `writeCount` numbers this tab's own changes as they start, after closing any pending Undo,
+   *   so a change started here while a delete was finishing makes that delete's Undo stale;
+   * - `newestStored` is the highest stored change number this tab knows of, from its own changes
+   *   and from other tabs' messages, so only a change stored *after* a delete makes it stale.
    */
   const writeCount = useRef(0);
+  const newestStored = useRef(0);
   const beginWrite = useCallback(() => {
     onWrite?.();
     return ++writeCount.current;
   }, [onWrite]);
+  const sawStored = (change: number) => {
+    newestStored.current = Math.max(newestStored.current, change);
+  };
 
   /** Messages to and from other open tabs of the app (same browser), about changed data. */
   const otherTabs = useRef<BroadcastChannel | null>(null);
@@ -92,21 +99,27 @@ export function DataProvider({ children, onWrite }: { children: ReactNode; onWri
     };
   }, [refresh]);
 
-  // Another tab changed the data: treat it like a write here (closes a pending Undo and makes
-  // older Undo offers stale), then reload. A tab never receives its own messages.
+  // Another tab stored a change (its message carries the change number): reload, and if it is
+  // newer than anything this tab knew of, close a pending Undo and make older offers stale. A
+  // late message about an older change leaves a newer Undo alone. A tab never hears itself.
   useEffect(() => {
     if (typeof BroadcastChannel !== 'function') return;
     const channel = new BroadcastChannel('money-tracker:changes');
     otherTabs.current = channel;
-    channel.onmessage = () => {
-      beginWrite();
+    channel.onmessage = (event: MessageEvent<{ change?: unknown }>) => {
+      const change = event.data?.change;
+      const newer = typeof change !== 'number' || change > newestStored.current;
+      if (newer) {
+        newestStored.current = typeof change === 'number' ? change : Infinity;
+        onWrite?.();
+      }
       void refresh();
     };
     return () => {
       channel.close();
       otherTabs.current = null;
     };
-  }, [beginWrite, refresh]);
+  }, [onWrite, refresh]);
 
   const value = useMemo<DataContextValue>(() => {
     const names = new Map(categories.map((c) => [c.id, c.name]));
@@ -118,7 +131,8 @@ export function DataProvider({ children, onWrite }: { children: ReactNode; onWri
     const write = async <T extends { change: number }>(store: () => Promise<T>) => {
       const tab = beginWrite();
       const { change: stored, ...rest } = await store();
-      otherTabs.current?.postMessage('changed');
+      sawStored(stored);
+      otherTabs.current?.postMessage({ change: stored });
       await refresh();
       return { tab, stored, ...rest };
     };
@@ -127,7 +141,10 @@ export function DataProvider({ children, onWrite }: { children: ReactNode; onWri
     const writeIfLatest = async (store: () => Promise<number | null>): Promise<Change | null> => {
       const tab = beginWrite();
       const stored = await store();
-      if (stored !== null) otherTabs.current?.postMessage('changed');
+      if (stored !== null) {
+        sawStored(stored);
+        otherTabs.current?.postMessage({ change: stored });
+      }
       await refresh();
       return stored === null ? null : { tab, stored };
     };
@@ -143,7 +160,7 @@ export function DataProvider({ children, onWrite }: { children: ReactNode; onWri
       entries,
       categories,
       categoryName: (id) => names.get(id) ?? 'Other',
-      isLatestWrite: (change) => change.tab === writeCount.current,
+      isLatestWrite: (change) => change.tab === writeCount.current && change.stored >= newestStored.current,
       saveEntry: (entry) =>
         write(() =>
           numbered(repository.putEntry(rollForward({ ...entry, updatedAt: new Date().toISOString() }, todayISO()))),
