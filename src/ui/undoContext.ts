@@ -1,7 +1,11 @@
 import { createContext, useContext } from 'react';
 
-/** Shows a short message with an Undo button; a new message replaces the previous one. */
-export type ShowUndo = (message: string, undo: () => Promise<void>) => void;
+/**
+ * Shows a short message with an Undo button; a new message replaces the previous one.
+ * `isCurrent` says whether the change being undone is still the latest one: if anything else
+ * has changed the data since, the bar isn't shown, or Undo just closes it.
+ */
+export type ShowUndo = (message: string, undo: () => Promise<unknown>, isCurrent: () => boolean) => void;
 
 export interface UndoControls {
   show: ShowUndo;

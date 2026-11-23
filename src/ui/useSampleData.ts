@@ -5,7 +5,7 @@ import { useUndo } from './undoContext';
 
 /** Loading and removing the example entries; real entries are never touched. */
 export function useSampleData() {
-  const { entries, categories, today, restore, deleteEntries } = useData();
+  const { entries, categories, today, restore, deleteEntries, isLatestWrite } = useData();
   const showUndo = useUndo();
   const samples = entries.filter(isSample);
 
@@ -20,8 +20,8 @@ export function useSampleData() {
 
   const remove = async () => {
     const removed = samples;
-    await deleteEntries(removed.map((e) => e.id));
-    showUndo('Removed the sample data', () => restore({ entries: removed }));
+    const version = await deleteEntries(removed.map((e) => e.id));
+    showUndo('Removed the sample data', () => restore({ entries: removed }), () => isLatestWrite(version));
   };
 
   return { hasSample: samples.length > 0, load, remove };

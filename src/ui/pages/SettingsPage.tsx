@@ -31,7 +31,7 @@ export function SettingsPage() {
 }
 
 function Categories() {
-  const { categories, entries, saveCategory, deleteCategory, restore } = useData();
+  const { categories, entries, saveCategory, deleteCategory, restore, isLatestWrite } = useData();
   const showUndo = useUndo();
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -49,9 +49,9 @@ function Categories() {
   const onDelete = async (c: Category) => {
     // Its entries move to Other; keep them as they were so Undo can move them back.
     const moved = entries.filter((e) => e.categoryId === c.id);
-    await deleteCategory(c.id);
+    const version = await deleteCategory(c.id);
     const note = moved.length > 0 ? `, ${moved.length} ${moved.length === 1 ? 'entry' : 'entries'} moved to Other` : '';
-    showUndo(`Deleted "${c.name}"${note}`, () => restore({ categories: [c], entries: moved }));
+    showUndo(`Deleted "${c.name}"${note}`, () => restore({ categories: [c], entries: moved }), () => isLatestWrite(version));
   };
 
   return (

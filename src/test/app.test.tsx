@@ -8,6 +8,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../App';
 import { repository } from '../data';
+import { createBackup } from '../domain/backup';
 import { DEFAULT_CATEGORIES, type Entry } from '../domain/types';
 
 function entry(overrides: Partial<Entry>): Entry {
@@ -229,6 +230,25 @@ describe('settings', () => {
     await screen.findByText('Rent');
     expect(screen.queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument();
     expect(await repository.listEntries()).toMatchObject([{ amountCents: 100000, categoryId: 'other' }]);
+  });
+
+  it('offers no stale Undo when a backup is restored while a delete is finishing', async () => {
+    await repository.putEntry(entry({}));
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const gym = entry({ id: 'gym', name: 'Gym', categoryId: 'other', amountCents: 3900 });
+    const backup = new File([JSON.stringify(createBackup({ entries: [gym], categories: DEFAULT_CATEGORIES }, 'NOW'))], 'backup.json', {
+      type: 'application/json',
+    });
+    await openApp('#/settings');
+
+    // Start deleting Housing, and pick the backup before that delete has finished.
+    fireEvent.click(within(screen.getByText('Housing').closest('li')!).getByRole('button', { name: 'Delete' }));
+    fireEvent.change(document.querySelector('input[type="file"]')!, { target: { files: [backup] } });
+
+    expect(await screen.findByText('Imported 1 entries.')).toBeInTheDocument();
+    await new Promise((r) => setTimeout(r, 100)); // let the delete finish too
+    expect(screen.queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument();
+    expect((await repository.listEntries()).map((e) => e.name)).toEqual(['Gym']);
   });
 
   it('deletes a category, and Undo moves its entries back from Other', async () => {

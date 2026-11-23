@@ -40,7 +40,7 @@ export function EntryPage() {
 }
 
 function EntryForm({ original }: { original?: Entry }) {
-  const { today, categories, saveEntry, deleteEntry, restore } = useData();
+  const { today, categories, saveEntry, deleteEntry, restore, isLatestWrite } = useData();
   const showUndo = useUndo();
   const navigate = useNavigate();
   const location = useLocation();
@@ -80,8 +80,8 @@ function EntryForm({ original }: { original?: Entry }) {
     const deleted = original;
     // Leave first: deleting while still here would flash the "Entry not found" page.
     goBack();
-    await deleteEntry(deleted.id);
-    showUndo(`Deleted "${deleted.name}"`, () => restore({ entries: [deleted] }));
+    const version = await deleteEntry(deleted.id);
+    showUndo(`Deleted "${deleted.name}"`, () => restore({ entries: [deleted] }), () => isLatestWrite(version));
   };
 
   const oneTime = values.frequency === 'one-time';

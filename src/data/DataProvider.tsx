@@ -27,6 +27,16 @@ export function DataProvider({ children, onWrite }: { children: ReactNode; onWri
   /** The day the data was last refreshed for, readable from timers without re-subscribing. */
   const dayRef = useRef(today);
 
+  /**
+   * Every change made through the context gets the next number, after closing any pending
+   * Undo. An Undo is only offered while its delete is still the latest change (isLatestWrite).
+   */
+  const writeCount = useRef(0);
+  const beginWrite = useCallback(() => {
+    onWrite?.();
+    return ++writeCount.current;
+  }, [onWrite]);
+
   /** Numbers each refresh, so a slow older one can't overwrite what a newer one showed. */
   const refreshCount = useRef(0);
   const shownRefresh = useRef(0);
@@ -92,46 +102,54 @@ export function DataProvider({ children, onWrite }: { children: ReactNode; onWri
       entries,
       categories,
       categoryName: (id) => names.get(id) ?? 'Other',
+      isLatestWrite: (version) => version === writeCount.current,
       async saveEntry(entry) {
-        onWrite?.();
+        const version = beginWrite();
         const stamped = { ...entry, updatedAt: new Date().toISOString() };
         await repository.putEntry(rollForward(stamped, todayISO()));
         await refresh();
+        return version;
       },
       async deleteEntry(id) {
-        onWrite?.();
+        const version = beginWrite();
         await repository.deleteEntry(id);
         await refresh();
+        return version;
       },
       async deleteEntries(ids) {
-        onWrite?.();
+        const version = beginWrite();
         for (const id of ids) await repository.deleteEntry(id);
         await refresh();
+        return version;
       },
       async saveCategory(category) {
-        onWrite?.();
+        const version = beginWrite();
         await repository.putCategory(category);
         await refresh();
+        return version;
       },
       async deleteCategory(id) {
-        onWrite?.();
+        const version = beginWrite();
         if (id === OTHER_CATEGORY_ID) throw new Error('The Other category cannot be deleted.');
         await repository.deleteCategory(id, OTHER_CATEGORY_ID);
         await refresh();
+        return version;
       },
       async restore({ entries: restored = [], categories: restoredCategories = [] }) {
-        onWrite?.();
+        const version = beginWrite();
         for (const c of restoredCategories) await repository.putCategory(c);
         if (restored.length > 0) await repository.putEntries(restored.map((e) => rollForward(e, todayISO())));
         await refresh();
+        return version;
       },
       async replaceAll(data) {
-        onWrite?.();
+        const version = beginWrite();
         await repository.replaceAll(data);
         await refresh();
+        return version;
       },
     };
-  }, [loading, error, storageStatus, today, entries, categories, refresh, onWrite]);
+  }, [loading, error, storageStatus, today, entries, categories, refresh, beginWrite]);
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 }

@@ -7,7 +7,8 @@ export const UNDO_MS = 8000;
 interface Pending {
   id: number;
   message: string;
-  undo: () => Promise<void>;
+  undo: () => Promise<unknown>;
+  isCurrent: () => boolean;
 }
 
 /**
@@ -18,8 +19,10 @@ interface Pending {
 export function UndoProvider({ children }: { children: ReactNode }) {
   const [pending, setPending] = useState<Pending | null>(null);
 
-  const show = useCallback((message: string, undo: () => Promise<void>) => {
-    setPending({ id: Date.now(), message, undo });
+  const show = useCallback((message: string, undo: () => Promise<unknown>, isCurrent: () => boolean) => {
+    // Something else changed the data while the delete was finishing: its snapshot is stale.
+    if (!isCurrent()) return;
+    setPending({ id: Date.now(), message, undo, isCurrent });
   }, []);
   const dismiss = useCallback(() => setPending(null), []);
   const controls = useMemo(() => ({ show, dismiss }), [show, dismiss]);
@@ -33,7 +36,7 @@ export function UndoProvider({ children }: { children: ReactNode }) {
   const onUndo = async () => {
     if (!pending) return;
     setPending(null);
-    await pending.undo();
+    if (pending.isCurrent()) await pending.undo();
   };
 
   return (

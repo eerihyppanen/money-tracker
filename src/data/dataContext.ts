@@ -15,14 +15,17 @@ export interface DataContextValue {
   entries: Entry[];
   categories: Category[];
   categoryName: (id: string) => string;
-  saveEntry: (entry: Entry) => Promise<void>;
-  deleteEntry: (id: string) => Promise<void>;
-  deleteEntries: (ids: string[]) => Promise<void>;
-  saveCategory: (category: Category) => Promise<void>;
-  deleteCategory: (id: string) => Promise<void>;
-  replaceAll: (data: AppData) => Promise<void>;
+  // Every change resolves to its write number, for isLatestWrite.
+  saveEntry: (entry: Entry) => Promise<number>;
+  deleteEntry: (id: string) => Promise<number>;
+  deleteEntries: (ids: string[]) => Promise<number>;
+  saveCategory: (category: Category) => Promise<number>;
+  deleteCategory: (id: string) => Promise<number>;
+  replaceAll: (data: AppData) => Promise<number>;
   /** Puts deleted or changed records back exactly as they were, for Undo. */
-  restore: (data: Partial<AppData>) => Promise<void>;
+  restore: (data: Partial<AppData>) => Promise<number>;
+  /** True while no other change has started since the write with this number. */
+  isLatestWrite: (version: number) => boolean;
 }
 
 export const DataContext = createContext<DataContextValue | null>(null);
