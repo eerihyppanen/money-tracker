@@ -25,11 +25,22 @@ export interface Repository {
 
   putEntry(entry: Entry): Promise<number>;
   putEntries(entries: Entry[]): Promise<number>;
-  deleteEntry(id: string): Promise<number>;
-  deleteEntries(ids: string[]): Promise<number>;
+  /**
+   * Deletes entries and returns what was really deleted, read in the same transaction: the
+   * stored version (maybe newer than what a screen showed), and nothing for ids already gone.
+   * Undo puts back exactly these.
+   */
+  deleteEntry(id: string): Promise<{ change: number; deleted: Entry[] }>;
+  deleteEntries(ids: string[]): Promise<{ change: number; deleted: Entry[] }>;
   putCategory(category: Category): Promise<number>;
-  /** Deletes a category, moves its entries to `fallbackCategoryId`, and says which it moved. */
-  deleteCategory(id: string, fallbackCategoryId: string): Promise<{ change: number; movedEntryIds: string[] }>;
+  /**
+   * Deletes a category and moves its entries to `fallbackCategoryId`. Returns the category as
+   * stored when deleted (null if it was already gone) and which entries it really moved.
+   */
+  deleteCategory(
+    id: string,
+    fallbackCategoryId: string,
+  ): Promise<{ change: number; deleted: Category | null; movedEntryIds: string[] }>;
   /** Replaces all data at once (used by backup import). */
   replaceAll(data: AppData): Promise<number>;
 

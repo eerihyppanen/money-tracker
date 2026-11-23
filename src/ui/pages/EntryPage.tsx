@@ -77,11 +77,14 @@ function EntryForm({ original }: { original?: Entry }) {
 
   const onDelete = async () => {
     if (!original) return;
-    const deleted = original;
     // Leave first: deleting while still here would flash the "Entry not found" page.
     goBack();
-    const change = await deleteEntry(deleted.id);
-    showUndo(`Deleted "${deleted.name}"`, () => restore({ entries: [deleted] }, change), () => isLatestWrite(change));
+    // Undo restores what was really deleted: the stored version, which another tab may have
+    // changed since this page loaded. Nothing deleted (already gone): no Undo.
+    const change = await deleteEntry(original.id);
+    const [deleted] = change.deleted;
+    if (!deleted) return;
+    showUndo(`Deleted "${deleted.name}"`, () => restore({ entries: change.deleted }, change), () => isLatestWrite(change));
   };
 
   const oneTime = values.frequency === 'one-time';

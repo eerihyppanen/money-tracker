@@ -150,6 +150,19 @@ describe('editing and deleting', () => {
     expect((await repository.listEntries())[0]).toMatchObject({ amountCents: 100000, anchorDay: 31, nextDueDate: '2027-01-31' });
   });
 
+  it('Undo restores the version that was deleted, not the older one on screen', async () => {
+    await repository.putEntry(entry({}));
+    const user = await openApp('#/entry/rent');
+    // Another tab saves a new amount; this page still shows 950,00.
+    await repository.putEntry(entry({ amountCents: 100000 }));
+
+    await user.click(screen.getByRole('button', { name: 'Delete' }));
+    await user.click(await screen.findByRole('button', { name: 'Undo' }));
+
+    await screen.findByText('Rent');
+    expect((await repository.listEntries())[0].amountCents).toBe(100000);
+  });
+
   it('goes straight back to the list without flashing "Entry not found"', async () => {
     await repository.putEntry(entry({}));
     const user = await openApp('#/list');
@@ -290,6 +303,19 @@ describe('settings', () => {
     await new Promise((r) => setTimeout(r, 50));
     expect(screen.queryByText('Housing')).not.toBeInTheDocument();
     expect(await repository.listEntries()).toMatchObject([{ categoryId: 'other', amountCents: 100000 }]);
+  });
+
+  it('Undo brings back a category as it was when deleted, even if renamed in another tab', async () => {
+    const user = await openApp('#/settings');
+    // Another tab renames Housing to Home; this page still says Housing.
+    await repository.putCategory({ id: 'housing', name: 'Home', isDefault: true });
+
+    await user.click(within(screen.getByText('Housing').closest('li')!).getByRole('button', { name: 'Delete' }));
+    expect(await screen.findByText('Deleted "Home"')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Undo' }));
+
+    expect(await screen.findByText('Home')).toBeInTheDocument();
+    expect((await repository.listCategories()).find((c) => c.id === 'housing')!.name).toBe('Home');
   });
 
   it('Undo moves back only what the delete moved, even if this page was out of date', async () => {

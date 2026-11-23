@@ -111,14 +111,18 @@ export function DataProvider({ children, onWrite }: { children: ReactNode; onWri
   const value = useMemo<DataContextValue>(() => {
     const names = new Map(categories.map((c) => [c.id, c.name]));
 
-    /** One change: closes a pending Undo, stores it, tells other tabs, reloads. */
-    const write = async (store: () => Promise<number>): Promise<Change> => {
+    /**
+     * One change: closes a pending Undo, stores it, tells other tabs, reloads. Anything else the
+     * storage call returns next to its change number (e.g. what a delete removed) is passed on.
+     */
+    const write = async <T extends { change: number }>(store: () => Promise<T>) => {
       const tab = beginWrite();
-      const stored = await store();
+      const { change: stored, ...rest } = await store();
       otherTabs.current?.postMessage('changed');
       await refresh();
-      return { tab, stored };
+      return { tab, stored, ...rest };
     };
+    const numbered = (pending: Promise<number>) => pending.then((change) => ({ change }));
     /** Like `write`, for an Undo that storage refuses (null) when something changed since. */
     const writeIfLatest = async (store: () => Promise<number | null>): Promise<Change | null> => {
       const tab = beginWrite();
@@ -141,21 +145,17 @@ export function DataProvider({ children, onWrite }: { children: ReactNode; onWri
       categoryName: (id) => names.get(id) ?? 'Other',
       isLatestWrite: (change) => change.tab === writeCount.current,
       saveEntry: (entry) =>
-        write(() => repository.putEntry(rollForward({ ...entry, updatedAt: new Date().toISOString() }, todayISO()))),
+        write(() =>
+          numbered(repository.putEntry(rollForward({ ...entry, updatedAt: new Date().toISOString() }, todayISO()))),
+        ),
       deleteEntry: (id) => write(() => repository.deleteEntry(id)),
       deleteEntries: (ids) => write(() => repository.deleteEntries(ids)),
-      saveCategory: (category) => write(() => repository.putCategory(category)),
-      async deleteCategory(id) {
-        if (id === OTHER_CATEGORY_ID) throw new Error('The Other category cannot be deleted.');
-        let movedEntryIds: string[] = [];
-        const change = await write(async () => {
-          const result = await repository.deleteCategory(id, OTHER_CATEGORY_ID);
-          movedEntryIds = result.movedEntryIds;
-          return result.change;
-        });
-        return { ...change, movedEntryIds };
+      saveCategory: (category) => write(() => numbered(repository.putCategory(category))),
+      deleteCategory(id) {
+        if (id === OTHER_CATEGORY_ID) return Promise.reject(new Error('The Other category cannot be deleted.'));
+        return write(() => repository.deleteCategory(id, OTHER_CATEGORY_ID));
       },
-      replaceAll: (data) => write(() => repository.replaceAll(data)),
+      replaceAll: (data) => write(() => numbered(repository.replaceAll(data))),
       restore: ({ entries: restored = [], categories: restoredCategories = [] }, after) =>
         writeIfLatest(() =>
           repository.restoreMissing(

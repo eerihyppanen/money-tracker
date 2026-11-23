@@ -27,11 +27,12 @@ export interface DataContextValue {
   categories: Category[];
   categoryName: (id: string) => string;
   saveEntry: (entry: Entry) => Promise<Change>;
-  deleteEntry: (id: string) => Promise<Change>;
-  deleteEntries: (ids: string[]) => Promise<Change>;
+  /** Also returns what was really deleted (as stored, maybe newer than this screen); Undo restores that. */
+  deleteEntry: (id: string) => Promise<Change & { deleted: Entry[] }>;
+  deleteEntries: (ids: string[]) => Promise<Change & { deleted: Entry[] }>;
   saveCategory: (category: Category) => Promise<Change>;
-  /** Also says which entries the delete actually moved to Other. */
-  deleteCategory: (id: string) => Promise<Change & { movedEntryIds: string[] }>;
+  /** Also returns the category as stored when deleted (null if already gone) and which entries it moved. */
+  deleteCategory: (id: string) => Promise<Change & { deleted: Category | null; movedEntryIds: string[] }>;
   replaceAll: (data: AppData) => Promise<Change>;
   /**
    * Puts deleted records back as they were (Undo, sample data); existing records are never

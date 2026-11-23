@@ -112,7 +112,7 @@ describe('Undo in storage', () => {
   it('refuses to put a deleted entry back into a backup restored since', async () => {
     const repo = await freshRepository();
     await repo.putEntry(rent);
-    const change = await repo.deleteEntry('rent');
+    const { change } = await repo.deleteEntry('rent');
     const gym = { ...rent, id: 'gym', name: 'Gym' };
     await repo.replaceAll({ entries: [gym], categories: [housing] }); // another tab restores a backup
 
@@ -123,9 +123,25 @@ describe('Undo in storage', () => {
   it('puts a deleted entry back while nothing has changed since', async () => {
     const repo = await freshRepository();
     await repo.putEntry(rent);
-    const change = await repo.deleteEntry('rent');
+    const { change } = await repo.deleteEntry('rent');
     expect(await repo.restoreMissing({ entries: [rent] }, change)).toBe(change + 1);
     expect(await repo.listEntries()).toEqual([rent]);
+  });
+
+  it('a delete returns the stored version it removed, which may be newer than a screen showed', async () => {
+    const repo = await freshRepository();
+    await repo.putEntry(rent);
+    await repo.putEntry({ ...rent, amountCents: 100000 }); // saved in another tab
+
+    expect((await repo.deleteEntry('rent')).deleted).toEqual([{ ...rent, amountCents: 100000 }]);
+    expect((await repo.deleteEntries(['rent', 'gone'])).deleted).toEqual([]); // already deleted
+  });
+
+  it('a category delete returns the category as stored', async () => {
+    const repo = await freshRepository();
+    await repo.putCategory({ ...housing, name: 'Home' }); // renamed in another tab
+    expect((await repo.deleteCategory('housing', 'other')).deleted).toEqual({ ...housing, name: 'Home' });
+    expect((await repo.deleteCategory('housing', 'other')).deleted).toBeNull();
   });
 });
 
@@ -135,7 +151,7 @@ describe('change numbers', () => {
     const first = await repo.putEntry(rent);
     expect(await repo.putCategory({ id: 'pets', name: 'Pets', isDefault: false })).toBe(first + 1);
     await repo.advanceDueDates('2026-11-11');
-    expect(await repo.deleteEntry('rent')).toBe(first + 2);
+    expect((await repo.deleteEntry('rent')).change).toBe(first + 2);
   });
 
   it('are added to an existing database without touching its data', async () => {

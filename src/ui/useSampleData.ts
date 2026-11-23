@@ -19,9 +19,10 @@ export function useSampleData() {
   };
 
   const remove = async () => {
-    const removed = samples;
-    const change = await deleteEntries(removed.map((e) => e.id));
-    showUndo('Removed the sample data', () => restore({ entries: removed }, change), () => isLatestWrite(change));
+    const change = await deleteEntries(samples.map((e) => e.id));
+    if (change.deleted.length === 0) return;
+    // Undo restores the stored versions that were really removed, not this screen's copies.
+    showUndo('Removed the sample data', () => restore({ entries: change.deleted }, change), () => isLatestWrite(change));
   };
 
   return { hasSample: samples.length > 0, load, remove };

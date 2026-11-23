@@ -50,6 +50,14 @@ export function createDexieRepository(dbName = 'money-tracker'): Repository {
       return nextChange();
     });
 
+  /** Deletes entries, returning the stored versions that were really there (for Undo). */
+  const deleteEntries = (ids: string[]) =>
+    db.transaction('rw', db.entries, db.meta, async () => {
+      const deleted = (await db.entries.bulkGet(ids)).filter((e): e is Entry => e !== undefined);
+      await db.entries.bulkDelete(ids);
+      return { change: await nextChange(), deleted };
+    });
+
   return {
     async init() {
       await db.transaction('rw', db.categories, async () => {
@@ -64,17 +72,18 @@ export function createDexieRepository(dbName = 'money-tracker'): Repository {
 
     putEntry: (entry) => change([db.entries], () => db.entries.put(entry)),
     putEntries: (entries) => change([db.entries], () => db.entries.bulkPut(entries)),
-    deleteEntry: (id) => change([db.entries], () => db.entries.delete(id)),
-    deleteEntries: (ids) => change([db.entries], () => db.entries.bulkDelete(ids)),
+    deleteEntry: (id) => deleteEntries([id]),
+    deleteEntries,
     putCategory: (category) => change([db.categories], () => db.categories.put(category)),
 
     deleteCategory(id, fallbackCategoryId) {
       return db.transaction('rw', db.entries, db.categories, db.meta, async () => {
         // The entries really in the category now, not what some screen showed earlier.
+        const deleted = (await db.categories.get(id)) ?? null;
         const movedEntryIds = (await db.entries.where('categoryId').equals(id).primaryKeys()) as string[];
         await db.entries.where(':id').anyOf(movedEntryIds).modify({ categoryId: fallbackCategoryId });
         await db.categories.delete(id);
-        return { change: await nextChange(), movedEntryIds };
+        return { change: await nextChange(), deleted, movedEntryIds };
       });
     },
 
