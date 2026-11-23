@@ -3,7 +3,7 @@
  * Screen-level tests: the whole app rendered in a simulated browser with an in-memory
  * IndexedDB, driven the way a person would use it. "Today" is fixed to 11.11.2026.
  */
-import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../App';
@@ -429,6 +429,27 @@ describe('sample data', () => {
 });
 
 describe('a new day', () => {
+  it('keeps the payment day when a form left open past midnight is saved', async () => {
+    // Paid on the 31st, so due 28.2.2027; the form is open just before midnight.
+    vi.setSystemTime(new Date(2027, 1, 28, 23, 50));
+    await repository.putEntry(entry({ nextDueDate: '2027-02-28', anchorDay: 31 }));
+    const user = await openApp('#/entry/rent');
+
+    // After midnight the automatic update moves the stored due date to 31.3.
+    vi.setSystemTime(new Date(2027, 2, 1, 8, 0));
+    fireEvent.focus(window);
+    await waitFor(async () => expect((await repository.listEntries())[0].nextDueDate).toBe('2027-03-31'));
+
+    // Only the amount is changed.
+    const amount = screen.getByLabelText('Amount');
+    await user.clear(amount);
+    await user.type(amount, '1000');
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+
+    await screen.findByText('Rent');
+    expect((await repository.listEntries())[0]).toMatchObject({ amountCents: 100000, nextDueDate: '2027-03-31', anchorDay: 31 });
+  });
+
   it('moves on when the window gets focus again', async () => {
     vi.setSystemTime(new Date(2026, 10, 30, 23, 50));
     await openApp('#/');

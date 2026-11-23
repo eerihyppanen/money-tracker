@@ -56,6 +56,8 @@ function EntryForm({ original, onDeleting }: { original?: Entry; onDeleting: (bu
   const [errors, setErrors] = useState<FormErrors>({});
   const [submitted, setSubmitted] = useState(false);
   const [saving, setSaving] = useState(false);
+  /** The entry as it was when this form opened (`original` follows later updates). */
+  const [opened] = useState(original);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
@@ -75,8 +77,12 @@ function EntryForm({ original, onDeleting }: { original?: Entry; onDeleting: (bu
     setErrors(found);
     if (Object.keys(found).length > 0) return;
     setSaving(true);
+    // The stored due date moves forward by itself (e.g. past midnight while this form is open).
+    // If the date field wasn't edited, save the current stored date, so the payment day is kept.
+    const dateUntouched = original && opened && values.nextDueDate === opened.nextDueDate;
+    const toSave = dateUntouched ? { ...values, nextDueDate: original.nextDueDate } : values;
     try {
-      await saveEntry(toEntry(values, original, new Date().toISOString(), () => newId()));
+      await saveEntry(toEntry(toSave, original, new Date().toISOString(), () => newId()));
       goBack();
     } finally {
       setSaving(false);
