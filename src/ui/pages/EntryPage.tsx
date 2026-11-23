@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useData } from '../../data/dataContext';
+import { newId } from '../../data/ids';
 import {
   emptyForm,
   fromEntry,
@@ -67,7 +68,7 @@ function EntryForm({ original }: { original?: Entry }) {
     if (Object.keys(found).length > 0) return;
     setSaving(true);
     try {
-      await saveEntry(toEntry(values, original, new Date().toISOString(), () => crypto.randomUUID()));
+      await saveEntry(toEntry(values, original, new Date().toISOString(), () => newId()));
       goBack();
     } finally {
       setSaving(false);

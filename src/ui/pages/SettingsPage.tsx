@@ -1,5 +1,6 @@
 import { useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { useData } from '../../data/dataContext';
+import { newId } from '../../data/ids';
 import { parseBackup, toCSV, validateCategoryName } from '../../domain/backup';
 import { formatDate } from '../../domain/format';
 import { OTHER_CATEGORY_ID, type Category } from '../../domain/types';
@@ -41,7 +42,7 @@ function Categories() {
     const problem = validateCategoryName(name, categories);
     setError(problem);
     if (problem) return;
-    await saveCategory({ id: crypto.randomUUID(), name: name.trim(), isDefault: false });
+    await saveCategory({ id: newId(), name: name.trim(), isDefault: false });
     setName('');
   };
 
