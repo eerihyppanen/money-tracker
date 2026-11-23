@@ -65,10 +65,9 @@ describe('validateForm', () => {
     ).toEqual({});
   });
 
-  it('rejects a next due date before the start date', () => {
-    expect(validateForm(form({ startDate: '2027-01-01', nextDueDate: '2026-12-01' }))).toEqual({
-      nextDueDate: 'This is before the start date, 1.1.2027.',
-    });
+  it('accepts a next due date before the start date, so older entries can still be saved', () => {
+    // Older versions and backups allow this; the list then shows the first payment from the start.
+    expect(validateForm(form({ startDate: '2027-02-01', nextDueDate: '2027-01-31' }))).toEqual({});
     expect(validateForm(form({ startDate: '2026-12-01', nextDueDate: '2026-12-01', endDate: '2026-12-01' }))).toEqual({});
     // One-time entries have no start or end date to compare with.
     expect(validateForm(form({ frequency: 'one-time', startDate: '2027-01-01', nextDueDate: '2026-12-01' }))).toEqual({});

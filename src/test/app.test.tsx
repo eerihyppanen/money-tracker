@@ -135,6 +135,21 @@ describe('editing and deleting', () => {
     expect(text(row)).not.toContain('Next');
   });
 
+  it('saves an older entry whose due date is before its start date, keeping its day', async () => {
+    // Allowed by earlier versions and by backups: a rhythm on the 31st starting in February.
+    await repository.putEntry(entry({ nextDueDate: '2027-01-31', anchorDay: 31, startDate: '2027-02-01' }));
+    const user = await openApp('#/entry/rent');
+
+    const amount = screen.getByLabelText('Amount');
+    await user.clear(amount);
+    await user.type(amount, '1000');
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+
+    const row = (await screen.findByText('Rent')).closest('a')!;
+    expect(text(row)).toContain('Next 28.2.2027');
+    expect((await repository.listEntries())[0]).toMatchObject({ amountCents: 100000, anchorDay: 31, nextDueDate: '2027-01-31' });
+  });
+
   it('goes straight back to the list without flashing "Entry not found"', async () => {
     await repository.putEntry(entry({}));
     const user = await openApp('#/list');

@@ -1,6 +1,6 @@
 /** Converting between what the add/edit form holds (strings) and a stored Entry. */
 import { firstOfMonth, isValidISO, minDate, parseISO } from './dates';
-import { formatAmountInput, formatDate, parseAmount } from './format';
+import { formatAmountInput, parseAmount } from './format';
 import { OTHER_CATEGORY_ID, type Entry, type EntryType, type Frequency, type ISODate } from './types';
 
 export interface EntryFormValues {
@@ -66,11 +66,9 @@ export function validateForm(v: EntryFormValues): FormErrors {
     if (v.endDate !== '' && isValidISO(v.startDate) && v.endDate < v.startDate) {
       errors.endDate = 'The end date must be on or after the start date.';
     }
-    // A due date before the start can never be charged. (A due date after the end date is
-    // fine: that is how a subscription ends before its next charge.)
-    if (!errors.nextDueDate && !errors.startDate && v.nextDueDate < v.startDate) {
-      errors.nextDueDate = `This is before the start date, ${formatDate(v.startDate)}.`;
-    }
+    // A due date outside the start–end range is allowed on purpose: older versions and backups
+    // allow it, and moving it could shift the day of the month. The list shows the first
+    // payment that actually counts (see nextPayment).
   }
   return errors;
 }

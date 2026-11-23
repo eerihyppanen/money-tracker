@@ -446,6 +446,17 @@ describe('ending before the next charge', () => {
     expect(nextPayment(entry({ nextDueDate: '2026-11-11' }), '2026-11-11')).toBe('2026-11-11');
   });
 
+  it('starts counting from the start date, keeping the day of the month', () => {
+    // A rhythm on the 31st whose first counted payment is at the end of February.
+    const startsInFebruary = entry({ nextDueDate: '2027-01-31', startDate: '2027-02-01' });
+    expect(nextPayment(startsInFebruary, '2026-11-11')).toBe('2027-02-28');
+    expect(occurrencesInRange(startsInFebruary, '2027-02-01', '2027-03-31').map((c) => c.date)).toEqual([
+      '2027-02-28',
+      '2027-03-31',
+    ]);
+    expect(nextPayment(entry({ nextDueDate: '2026-12-01', startDate: '2027-01-01' }), '2026-11-11')).toBe('2027-01-01');
+  });
+
   it('gives a one-time entry its own date', () => {
     expect(nextPayment(entry({ frequency: 'one-time', nextDueDate: '2026-10-03' }), '2026-11-11')).toBe('2026-10-03');
   });
