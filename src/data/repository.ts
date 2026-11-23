@@ -29,6 +29,17 @@ export interface Repository {
   /** Deletes a category and moves its entries to `fallbackCategoryId`. */
   deleteCategory(id: string, fallbackCategoryId: string): Promise<void>;
 
+  /**
+   * Puts back records that no longer exist, for Undo. Records that exist are left alone, so
+   * an Undo can never overwrite a change made since (in this tab or another). One transaction.
+   */
+  restoreMissing(data: Partial<AppData>): Promise<void>;
+  /**
+   * Undoes a category delete: re-creates the category if it is still gone, and moves back the
+   * given entries that are still in `fromCategoryId`. Only their category changes. One transaction.
+   */
+  undoCategoryDelete(category: Category, entryIds: string[], fromCategoryId: string): Promise<void>;
+
   /** Replaces all data at once (used by backup import). */
   replaceAll(data: AppData): Promise<void>;
 }

@@ -261,6 +261,21 @@ describe('settings', () => {
     expect((await repository.listEntries()).map((e) => e.name)).toEqual(['Gym']);
   });
 
+  it('undoing a category delete keeps an amount changed in another tab', async () => {
+    const rent = entry({});
+    await repository.putEntry(rent);
+    const user = await openApp('#/settings');
+    await user.click(within(screen.getByText('Housing').closest('li')!).getByRole('button', { name: 'Delete' }));
+    const undo = await screen.findByRole('button', { name: 'Undo' });
+
+    // Another tab writes straight to the shared database: Rent (now in Other) gets a new amount.
+    await repository.putEntry({ ...rent, categoryId: 'other', amountCents: 100000 });
+
+    await user.click(undo);
+    expect(await screen.findByText('Housing')).toBeInTheDocument();
+    expect(await repository.listEntries()).toMatchObject([{ categoryId: 'housing', amountCents: 100000 }]);
+  });
+
   it('deletes a category, and Undo moves its entries back from Other', async () => {
     const rent = entry({});
     await repository.putEntry(rent);

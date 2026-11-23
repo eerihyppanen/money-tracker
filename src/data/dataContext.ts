@@ -22,8 +22,13 @@ export interface DataContextValue {
   saveCategory: (category: Category) => Promise<number>;
   deleteCategory: (id: string) => Promise<number>;
   replaceAll: (data: AppData) => Promise<number>;
-  /** Puts deleted or changed records back exactly as they were, for Undo. */
+  /**
+   * Puts deleted records back as they were, for Undo (and loads sample data). Records that
+   * exist are never overwritten, so an Undo can't undo a change made since.
+   */
   restore: (data: Partial<AppData>) => Promise<number>;
+  /** Undoes a category delete: brings the category back and moves back the entries still in Other. */
+  undoCategoryDelete: (category: Category, entryIds: string[]) => Promise<number>;
   /** True while no other change has started since the write with this number. */
   isLatestWrite: (version: number) => boolean;
 }

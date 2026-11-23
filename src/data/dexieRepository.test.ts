@@ -56,3 +56,46 @@ describe('advanceDueDates', () => {
     expect(await repo.listEntries()).toEqual([]);
   });
 });
+
+describe('Undo in storage', () => {
+  const housing = { id: 'housing', name: 'Housing', isDefault: true };
+
+  it('restoreMissing puts back what is gone and never overwrites what exists', async () => {
+    const repo = await freshRepository();
+    const edited = { ...rent, amountCents: 100000 }; // changed meanwhile, e.g. in another tab
+    await repo.putEntry(edited);
+
+    const gym = { ...rent, id: 'gym', name: 'Gym' };
+    await repo.restoreMissing({ entries: [rent, gym] });
+
+    const byId = Object.fromEntries((await repo.listEntries()).map((e) => [e.id, e]));
+    expect(byId.rent).toEqual(edited);
+    expect(byId.gym).toEqual(gym);
+  });
+
+  it('undoCategoryDelete moves back only the category, and only for entries still in Other', async () => {
+    const repo = await freshRepository();
+    await repo.putEntries([rent, { ...rent, id: 'water', name: 'Water' }]);
+    await repo.deleteCategory('housing', 'other');
+
+    // Meanwhile, in another tab: Rent gets a new amount, Water is moved to Food.
+    await repo.putEntry({ ...rent, categoryId: 'other', amountCents: 100000 });
+    const water = (await repo.listEntries()).find((e) => e.id === 'water')!;
+    await repo.putEntry({ ...water, categoryId: 'food' });
+
+    await repo.undoCategoryDelete(housing, ['rent', 'water'], 'other');
+
+    const byId = Object.fromEntries((await repo.listEntries()).map((e) => [e.id, e]));
+    expect(byId.rent).toMatchObject({ categoryId: 'housing', amountCents: 100000 });
+    expect(byId.water.categoryId).toBe('food');
+    expect((await repo.listCategories()).some((c) => c.id === 'housing')).toBe(true);
+  });
+
+  it('undoCategoryDelete keeps a category that already exists again', async () => {
+    const repo = await freshRepository();
+    await repo.deleteCategory('housing', 'other');
+    await repo.putCategory({ ...housing, name: 'Home' }); // re-created and renamed elsewhere
+    await repo.undoCategoryDelete(housing, [], 'other');
+    expect((await repo.listCategories()).find((c) => c.id === 'housing')!.name).toBe('Home');
+  });
+});

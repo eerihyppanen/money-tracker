@@ -137,8 +137,16 @@ export function DataProvider({ children, onWrite }: { children: ReactNode; onWri
       },
       async restore({ entries: restored = [], categories: restoredCategories = [] }) {
         const version = beginWrite();
-        for (const c of restoredCategories) await repository.putCategory(c);
-        if (restored.length > 0) await repository.putEntries(restored.map((e) => rollForward(e, todayISO())));
+        await repository.restoreMissing({
+          categories: restoredCategories,
+          entries: restored.map((e) => rollForward(e, todayISO())),
+        });
+        await refresh();
+        return version;
+      },
+      async undoCategoryDelete(category, entryIds) {
+        const version = beginWrite();
+        await repository.undoCategoryDelete(category, entryIds, OTHER_CATEGORY_ID);
         await refresh();
         return version;
       },
