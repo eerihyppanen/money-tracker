@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { UndoContext } from './undoContext';
 
 /** How long the Undo bar stays up. Long enough to notice and reach it with a thumb. */
@@ -11,8 +11,9 @@ interface Pending {
 }
 
 /**
- * Holds the current Undo message and draws the bar above the bottom tabs. It lives in the
- * layout, so the bar stays up when a delete also leaves the page.
+ * Holds the current Undo message and draws the bar above the bottom tabs. It wraps the whole
+ * app, so the bar stays up when a delete also leaves the page, and the data layer can close
+ * it when anything else changes (an old snapshot must never overwrite newer data).
  */
 export function UndoProvider({ children }: { children: ReactNode }) {
   const [pending, setPending] = useState<Pending | null>(null);
@@ -20,6 +21,8 @@ export function UndoProvider({ children }: { children: ReactNode }) {
   const show = useCallback((message: string, undo: () => Promise<void>) => {
     setPending({ id: Date.now(), message, undo });
   }, []);
+  const dismiss = useCallback(() => setPending(null), []);
+  const controls = useMemo(() => ({ show, dismiss }), [show, dismiss]);
 
   useEffect(() => {
     if (!pending) return;
@@ -34,7 +37,7 @@ export function UndoProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <UndoContext.Provider value={show}>
+    <UndoContext.Provider value={controls}>
       {children}
       <div
         role="status"

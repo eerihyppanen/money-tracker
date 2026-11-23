@@ -2,7 +2,7 @@ import { useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useData } from '../../data/dataContext';
 import { formatCents, formatDate } from '../../domain/format';
-import { DEFAULT_LIST_FILTER, filterAndSort, type ListFilter } from '../../domain/listing';
+import { DEFAULT_LIST_FILTER, filterAndSort, parseListFilter, type ListFilter } from '../../domain/listing';
 import { isEnded, monthlyEquivalent, yearlyEquivalent } from '../../domain/schedule';
 import { FREQUENCIES, FREQUENCY_LABELS, type Entry } from '../../domain/types';
 import { Segmented } from '../components/form';
@@ -12,8 +12,13 @@ const selectClass =
   'rounded-lg border border-line bg-surface py-2 pr-8 pl-3 text-base text-ink md:py-1.5 md:text-sm focus:border-accent focus:outline-none';
 
 /** Filters live in the URL so they survive opening an entry and coming back. */
-function useListFilter(): [ListFilter, (patch: Partial<ListFilter>) => void] {
+function useListFilter(categoryIds: string[]): [ListFilter, (patch: Partial<ListFilter>) => void] {
   const [params, setParams] = useSearchParams();
+  const readFilter = (p: URLSearchParams) =>
+    parseListFilter(
+      { type: p.get('type'), category: p.get('category'), frequency: p.get('frequency'), sort: p.get('sort') },
+      categoryIds,
+    );
   // Track the newest params ourselves: React Router's setter reads the params from the
   // render it came from, so two quick changes would otherwise overwrite each other.
   const latest = useRef(params);
@@ -32,18 +37,9 @@ function useListFilter(): [ListFilter, (patch: Partial<ListFilter>) => void] {
   return [readFilter(params), update];
 }
 
-function readFilter(params: URLSearchParams): ListFilter {
-  return {
-    type: (params.get('type') as ListFilter['type']) ?? DEFAULT_LIST_FILTER.type,
-    categoryId: params.get('category') ?? DEFAULT_LIST_FILTER.categoryId,
-    frequency: (params.get('frequency') as ListFilter['frequency']) ?? DEFAULT_LIST_FILTER.frequency,
-    sort: (params.get('sort') as ListFilter['sort']) ?? DEFAULT_LIST_FILTER.sort,
-  };
-}
-
 export function ListPage() {
   const { entries, categories, today } = useData();
-  const [filter, update] = useListFilter();
+  const [filter, update] = useListFilter(categories.map((c) => c.id));
   const shown = filterAndSort(entries, filter, today);
   const filtering = filter.type !== 'all' || filter.categoryId !== 'all' || filter.frequency !== 'all';
 

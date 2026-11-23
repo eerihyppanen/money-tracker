@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_LIST_FILTER, filterAndSort, type ListFilter } from './listing';
+import { DEFAULT_LIST_FILTER, filterAndSort, parseListFilter, type ListFilter } from './listing';
 import type { Entry } from './types';
 
 function entry(id: string, overrides: Partial<Entry> = {}): Entry {
@@ -51,5 +51,26 @@ describe('filterAndSort', () => {
       'paused',
       'ended',
     ]);
+  });
+});
+
+describe('parseListFilter', () => {
+  const none = { type: null, category: null, frequency: null, sort: null };
+  const ids = ['housing', 'other'];
+
+  it('reads valid values', () => {
+    expect(parseListFilter({ type: 'income', category: 'housing', frequency: 'yearly', sort: 'amount' }, ids)).toEqual({
+      type: 'income',
+      categoryId: 'housing',
+      frequency: 'yearly',
+      sort: 'amount',
+    });
+    expect(parseListFilter(none, ids)).toEqual(DEFAULT_LIST_FILTER);
+  });
+
+  it('ignores a deleted category and other unknown values', () => {
+    expect(parseListFilter({ type: 'gift', category: 'pets', frequency: 'daily', sort: 'name' }, ids)).toEqual(
+      DEFAULT_LIST_FILTER,
+    );
   });
 });

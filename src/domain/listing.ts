@@ -1,5 +1,5 @@
 import { isEnded } from './schedule';
-import type { Entry, EntryType, Frequency, ISODate } from './types';
+import { FREQUENCIES, type Entry, type EntryType, type Frequency, type ISODate } from './types';
 
 export type ListSort = 'due' | 'amount';
 
@@ -33,4 +33,21 @@ export function filterAndSort(entries: Entry[], f: ListFilter, today: ISODate): 
         (f.frequency === 'all' || e.frequency === f.frequency),
     )
     .sort((a, b) => dormant(a) - dormant(b) || byKey(a, b) || a.name.localeCompare(b.name));
+}
+
+/**
+ * Reads the filter from URL values. Anything unknown (a deleted category, a hand-edited
+ * address) falls back to the default, so the list never hides entries for no visible reason.
+ */
+export function parseListFilter(
+  raw: { type: string | null; category: string | null; frequency: string | null; sort: string | null },
+  categoryIds: string[],
+): ListFilter {
+  const d = DEFAULT_LIST_FILTER;
+  return {
+    type: raw.type === 'expense' || raw.type === 'income' ? raw.type : d.type,
+    categoryId: raw.category !== null && categoryIds.includes(raw.category) ? raw.category : d.categoryId,
+    frequency: FREQUENCIES.includes(raw.frequency as Frequency) ? (raw.frequency as Frequency) : d.frequency,
+    sort: raw.sort === 'amount' || raw.sort === 'due' ? raw.sort : d.sort,
+  };
 }

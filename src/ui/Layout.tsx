@@ -3,7 +3,6 @@ import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useData } from '../data/dataContext';
 import { CalendarIcon, ListIcon, OverviewIcon, PlusIcon, SettingsIcon } from './components/icons';
 import { SampleLink } from './SampleLink';
-import { UndoProvider } from './UndoProvider';
 
 const NAV = [
   { to: '/', label: 'Overview', Icon: OverviewIcon, end: true },
@@ -24,7 +23,7 @@ export function Layout() {
   }, [pathname]);
 
   return (
-    <UndoProvider>
+    <>
       <SampleLink />
       <div className="min-h-dvh md:flex">
         {/* Sidebar on wide screens */}
@@ -100,6 +99,6 @@ export function Layout() {
           ))}
         </nav>
       </div>
-    </UndoProvider>
+    </>
   );
 }

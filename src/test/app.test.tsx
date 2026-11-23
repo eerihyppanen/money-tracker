@@ -3,7 +3,7 @@
  * Screen-level tests: the whole app rendered in a simulated browser with an in-memory
  * IndexedDB, driven the way a person would use it. "Today" is fixed to 11.11.2026.
  */
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../App';
@@ -111,6 +111,24 @@ describe('editing and deleting', () => {
     expect(await repository.listEntries()).toHaveLength(0);
   });
 
+  it('goes straight back to the list without flashing "Entry not found"', async () => {
+    await repository.putEntry(entry({}));
+    const user = await openApp('#/list');
+    await user.click(await screen.findByText('Rent'));
+
+    let flashed = false;
+    const watcher = new MutationObserver(() => {
+      if (document.body.textContent?.includes('Entry not found')) flashed = true;
+    });
+    watcher.observe(document.body, { childList: true, subtree: true, characterData: true });
+    await user.click(await screen.findByRole('button', { name: 'Delete' }));
+    await screen.findByRole('button', { name: 'Undo' });
+    watcher.disconnect();
+
+    expect(flashed).toBe(false);
+    expect(screen.getByRole('heading', { name: 'Entries' })).toBeInTheDocument();
+  });
+
   it('brings a deleted entry back exactly as it was with Undo', async () => {
     const rent = entry({ notes: 'Paid by e-invoice' });
     await repository.putEntry(rent);
@@ -179,6 +197,25 @@ describe('settings', () => {
     await user.click(screen.getAllByRole('link', { name: 'Add entry' })[0]);
     const category = await screen.findByLabelText('Category');
     expect(within(category).getByRole('option', { name: 'Pets' })).toBeInTheDocument();
+  });
+
+  it('closes the Undo bar when the data changes some other way, so an edit is never undone', async () => {
+    await repository.putEntry(entry({}));
+    const user = await openApp('#/settings');
+    await user.click(within(screen.getByText('Housing').closest('li')!).getByRole('button', { name: 'Delete' }));
+    await screen.findByRole('button', { name: 'Undo' });
+
+    // Rent moved to Other; edit it while the Undo bar is still up.
+    await user.click(screen.getAllByRole('link', { name: 'Entries' })[0]);
+    await user.click(await screen.findByText('Rent'));
+    const amount = await screen.findByLabelText('Amount');
+    await user.clear(amount);
+    await user.type(amount, '1000');
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+
+    await screen.findByText('Rent');
+    expect(screen.queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument();
+    expect(await repository.listEntries()).toMatchObject([{ amountCents: 100000, categoryId: 'other' }]);
   });
 
   it('deletes a category, and Undo moves its entries back from Other', async () => {
@@ -260,5 +297,26 @@ describe('sample data', () => {
     expect(await screen.findByText('Rent')).toBeInTheDocument();
     expect(screen.queryByText('Freelance invoices')).not.toBeInTheDocument();
     expect(await repository.listEntries()).toHaveLength(1);
+  });
+});
+
+describe('a new day', () => {
+  it('moves on when the window gets focus again', async () => {
+    vi.setSystemTime(new Date(2026, 10, 30, 23, 50));
+    await openApp('#/');
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('November 2026');
+
+    vi.setSystemTime(new Date(2026, 11, 1, 8, 0));
+    fireEvent.focus(window);
+    expect(await screen.findByRole('heading', { name: 'December 2026' })).toBeInTheDocument();
+  });
+
+  it('moves on by itself when the app stays open past midnight', async () => {
+    vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'], now: new Date(2026, 10, 30, 23, 59, 30) });
+    await openApp('#/');
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('November 2026');
+
+    await act(async () => vi.advanceTimersByTime(60_000));
+    expect(await screen.findByRole('heading', { name: 'December 2026' })).toBeInTheDocument();
   });
 });

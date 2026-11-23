@@ -77,8 +77,9 @@ function EntryForm({ original }: { original?: Entry }) {
   const onDelete = async () => {
     if (!original) return;
     const deleted = original;
-    await deleteEntry(deleted.id);
+    // Leave first: deleting while still here would flash the "Entry not found" page.
     goBack();
+    await deleteEntry(deleted.id);
     showUndo(`Deleted "${deleted.name}"`, () => restore({ entries: [deleted] }));
   };
 
