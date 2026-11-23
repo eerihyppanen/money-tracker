@@ -21,8 +21,12 @@ export function EntryPage() {
   const { id } = useParams();
   const { entries } = useData();
   const original = id ? entries.find((e) => e.id === id) : undefined;
+  // While this entry is being deleted from here, its disappearing is expected: show nothing
+  // for the moment before leaving, rather than flashing "Entry not found".
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   if (id && !original) {
+    if (deletingId === id) return null;
     return (
       <>
         <PageHeader title="Entry not found" />
@@ -36,10 +40,12 @@ export function EntryPage() {
     );
   }
   // Keyed so switching between entries resets the form state.
-  return <EntryForm key={id ?? 'new'} original={original} />;
+  return (
+    <EntryForm key={id ?? 'new'} original={original} onDeleting={(busy) => setDeletingId(busy ? (id ?? null) : null)} />
+  );
 }
 
-function EntryForm({ original }: { original?: Entry }) {
+function EntryForm({ original, onDeleting }: { original?: Entry; onDeleting: (busy: boolean) => void }) {
   const { today, categories, saveEntry, deleteEntry, restore, isLatestWrite } = useData();
   const showUndo = useUndo();
   const navigate = useNavigate();
@@ -50,8 +56,10 @@ function EntryForm({ original }: { original?: Entry }) {
   const [errors, setErrors] = useState<FormErrors>({});
   const [submitted, setSubmitted] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  const set = <K extends keyof EntryFormValues>(key: K, value: EntryFormValues[K]) => {
+  const set =<K extends keyof EntryFormValues>(key: K, value: EntryFormValues[K]) => {
     const next = { ...values, [key]: value };
     setValues(next);
     // After the first save attempt, re-check as the user fixes things.
@@ -77,11 +85,22 @@ function EntryForm({ original }: { original?: Entry }) {
 
   const onDelete = async () => {
     if (!original) return;
-    // Leave first: deleting while still here would flash the "Entry not found" page.
+    setDeleteError(null);
+    setDeleting(true);
+    onDeleting(true);
+    let change;
+    try {
+      change = await deleteEntry(original.id);
+    } catch {
+      // Stay here so nothing looks deleted that isn't.
+      onDeleting(false);
+      setDeleting(false);
+      setDeleteError(`Couldn't delete "${original.name}". Nothing was changed. Try again.`);
+      return;
+    }
     goBack();
     // Undo restores what was really deleted: the stored version, which another tab may have
     // changed since this page loaded. Nothing deleted (already gone): no Undo.
-    const change = await deleteEntry(original.id);
     const [deleted] = change.deleted;
     if (!deleted) return;
     showUndo(`Deleted "${deleted.name}"`, () => restore({ entries: change.deleted }, change), () => isLatestWrite(change));
@@ -256,6 +275,11 @@ function EntryForm({ original }: { original?: Entry }) {
         )}
       </div>
 
+      {deleteError && (
+        <p role="alert" className="mt-6 text-expense">
+          {deleteError}
+        </p>
+      )}
       <div
         className="sticky z-10 -mx-4 mt-8 flex gap-3 bg-bg/95 px-4 py-3 backdrop-blur md:static md:mx-0 md:bg-transparent md:px-0"
         style={{ bottom: 'calc(env(safe-area-inset-bottom) + 64px)' }}
@@ -263,8 +287,9 @@ function EntryForm({ original }: { original?: Entry }) {
         {original && (
           <button
             type="button"
-            onClick={onDelete}
-            className="rounded-xl border border-line px-5 py-3 font-medium text-expense"
+            onClick={() => void onDelete()}
+            disabled={deleting}
+            className="rounded-xl border border-line px-5 py-3 font-medium text-expense disabled:opacity-60"
           >
             Delete
           </button>

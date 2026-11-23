@@ -163,6 +163,19 @@ describe('editing and deleting', () => {
     expect((await repository.listEntries())[0].amountCents).toBe(100000);
   });
 
+  it('stays on the form with an error when the delete fails', async () => {
+    await repository.putEntry(entry({}));
+    const user = await openApp('#/entry/rent');
+    vi.spyOn(repository, 'deleteEntry').mockRejectedValueOnce(new Error('Transaction aborted'));
+
+    await user.click(screen.getByRole('button', { name: 'Delete' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(`Couldn't delete "Rent". Nothing was changed`);
+    expect(screen.getByRole('heading', { name: 'Edit entry' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument();
+    expect(await repository.listEntries()).toHaveLength(1);
+  });
+
   it('goes straight back to the list without flashing "Entry not found"', async () => {
     await repository.putEntry(entry({}));
     const user = await openApp('#/list');
@@ -178,7 +191,7 @@ describe('editing and deleting', () => {
     watcher.disconnect();
 
     expect(flashed).toBe(false);
-    expect(screen.getByRole('heading', { name: 'Entries' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Entries' })).toBeInTheDocument();
   });
 
   it('brings a deleted entry back exactly as it was with Undo', async () => {
