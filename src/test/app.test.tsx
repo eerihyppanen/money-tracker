@@ -176,6 +176,22 @@ describe('editing and deleting', () => {
     expect(await repository.listEntries()).toHaveLength(1);
   });
 
+  it('still offers Undo when the delete is stored but reloading the screen fails', async () => {
+    await repository.putEntry(entry({}));
+    const user = await openApp('#/entry/rent');
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const realList = repository.listEntries.bind(repository);
+    vi.spyOn(repository, 'listEntries').mockRejectedValueOnce(new Error('Read failed')).mockImplementation(realList);
+
+    await user.click(screen.getByRole('button', { name: 'Delete' }));
+
+    expect(await screen.findByRole('button', { name: 'Undo' })).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(await repository.listEntries()).toHaveLength(0);
+    // The screen catches up on its own.
+    expect(await screen.findByText('No entries yet', {}, { timeout: 3000 })).toBeInTheDocument();
+  });
+
   it('goes straight back to the list without flashing "Entry not found"', async () => {
     await repository.putEntry(entry({}));
     const user = await openApp('#/list');

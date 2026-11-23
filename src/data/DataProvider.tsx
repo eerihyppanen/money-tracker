@@ -66,6 +66,19 @@ export function DataProvider({ children, onWrite }: { children: ReactNode; onWri
     setCategories(sortCategories(storedCategories));
   }, []);
 
+  /**
+   * Reloads after a stored change. The change has already happened, so a failed reload must not
+   * make it look failed (no Undo, "nothing was changed"): report it and try again shortly.
+   */
+  const reloadAfterChange = useCallback(async () => {
+    try {
+      await refresh();
+    } catch (error) {
+      console.error('Could not reload after a change; trying again.', error);
+      setTimeout(() => void refresh().catch((again) => console.error('Reload failed again.', again)), 1000);
+    }
+  }, [refresh]);
+
   useEffect(() => {
     const start = async () => {
       try {
@@ -133,7 +146,7 @@ export function DataProvider({ children, onWrite }: { children: ReactNode; onWri
       const { change: stored, ...rest } = await store();
       sawStored(stored);
       otherTabs.current?.postMessage({ change: stored });
-      await refresh();
+      await reloadAfterChange();
       return { tab, stored, ...rest };
     };
     const numbered = (pending: Promise<number>) => pending.then((change) => ({ change }));
@@ -145,7 +158,7 @@ export function DataProvider({ children, onWrite }: { children: ReactNode; onWri
         sawStored(stored);
         otherTabs.current?.postMessage({ change: stored });
       }
-      await refresh();
+      await reloadAfterChange();
       return stored === null ? null : { tab, stored };
     };
 
@@ -183,7 +196,7 @@ export function DataProvider({ children, onWrite }: { children: ReactNode; onWri
       undoCategoryDelete: (category, entryIds, after) =>
         writeIfLatest(() => repository.undoCategoryDelete(category, entryIds, OTHER_CATEGORY_ID, after.stored)),
     };
-  }, [loading, error, storageStatus, today, entries, categories, refresh, beginWrite]);
+  }, [loading, error, storageStatus, today, entries, categories, reloadAfterChange, beginWrite]);
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 }
