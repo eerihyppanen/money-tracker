@@ -125,6 +125,16 @@ describe('editing and deleting', () => {
     expect((await repository.listEntries())[0]).toMatchObject({ endDate: '2026-11-30', nextDueDate: '2026-12-01' });
   });
 
+  it('shows no next payment once the last charge before the end date is made', async () => {
+    // Last charge 1.11., ends 30.11., today is 11.11.: the stored due date stays 1.11.
+    await repository.putEntry(entry({ nextDueDate: '2026-11-01', endDate: '2026-11-30' }));
+    await openApp('#/list');
+
+    const row = (await screen.findByText('Rent')).closest('a')!;
+    expect(text(row)).toContain('Ends 30.11.2026, no more payments');
+    expect(text(row)).not.toContain('Next');
+  });
+
   it('goes straight back to the list without flashing "Entry not found"', async () => {
     await repository.putEntry(entry({}));
     const user = await openApp('#/list');

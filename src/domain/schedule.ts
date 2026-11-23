@@ -250,9 +250,13 @@ export function expensesByCategory(charges: Charge[]): { categoryId: string; cen
 }
 
 /**
- * The date of the next payment, or null when the entry ends before it: a subscription
- * cancelled after its last charge keeps its rhythm but has no next payment.
+ * The date of the next payment on or after `today`, or null when the entry ends before it: a
+ * subscription cancelled after its last charge keeps its rhythm but has no next payment.
+ * Counted from today because roll-forward never moves past the end date, so the stored due
+ * date can be a payment already made. A one-time entry just gets its own date.
  */
-export function nextPayment(entry: Entry): ISODate | null {
-  return entry.endDate !== undefined && entry.nextDueDate > entry.endDate ? null : entry.nextDueDate;
+export function nextPayment(entry: Entry, today: ISODate): ISODate | null {
+  if (entry.frequency === 'one-time') return entry.nextDueDate;
+  const next = entry.nextDueDate >= today ? entry.nextDueDate : occurrence(entry, firstIndexOnOrAfter(entry, today));
+  return entry.endDate !== undefined && next > entry.endDate ? null : next;
 }

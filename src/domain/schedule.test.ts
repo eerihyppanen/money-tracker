@@ -430,8 +430,23 @@ describe('ending before the next charge', () => {
   });
 
   it('has no next payment', () => {
-    expect(nextPayment(cancelled)).toBeNull();
-    expect(nextPayment(entry({ nextDueDate: '2026-12-01', endDate: '2026-12-01' }))).toBe('2026-12-01');
-    expect(nextPayment(entry({ nextDueDate: '2026-12-01' }))).toBe('2026-12-01');
+    expect(nextPayment(cancelled, '2026-11-11')).toBeNull();
+    expect(nextPayment(entry({ nextDueDate: '2026-12-01', endDate: '2026-12-01' }), '2026-11-11')).toBe('2026-12-01');
+    expect(nextPayment(entry({ nextDueDate: '2026-12-01' }), '2026-11-11')).toBe('2026-12-01');
+  });
+
+  it('looks for the next payment from today, not from the last stored due date', () => {
+    // Roll-forward never moves past the end date, so after the last charge on 1.11. the
+    // stored due date stays 1.11. On 11.11. there is no next payment.
+    const lastChargeDone = entry({ nextDueDate: '2026-11-01', startDate: '2026-01-01', endDate: '2026-11-30' });
+    expect(rollForward(lastChargeDone, '2026-11-11').nextDueDate).toBe('2026-11-01');
+    expect(nextPayment(lastChargeDone, '2026-11-11')).toBeNull();
+    // Without an end date, a due date not rolled forward yet still gives the right next one.
+    expect(nextPayment(entry({ nextDueDate: '2026-10-15' }), '2026-11-20')).toBe('2026-12-15');
+    expect(nextPayment(entry({ nextDueDate: '2026-11-11' }), '2026-11-11')).toBe('2026-11-11');
+  });
+
+  it('gives a one-time entry its own date', () => {
+    expect(nextPayment(entry({ frequency: 'one-time', nextDueDate: '2026-10-03' }), '2026-11-11')).toBe('2026-10-03');
   });
 });

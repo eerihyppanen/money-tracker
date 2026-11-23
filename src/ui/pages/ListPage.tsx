@@ -137,7 +137,7 @@ function EntryRow({ entry }: { entry: Entry }) {
   const ended = isEnded(entry, today);
   const dormant = !entry.active || ended;
   const oneTime = entry.frequency === 'one-time';
-  const next = nextPayment(entry);
+  const next = nextPayment(entry, today);
   const sign = entry.type === 'income' ? '+' : '−';
 
   return (
