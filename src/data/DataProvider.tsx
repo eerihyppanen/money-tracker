@@ -27,17 +27,23 @@ export function DataProvider({ children, onWrite }: { children: ReactNode; onWri
   /** The day the data was last refreshed for, readable from timers without re-subscribing. */
   const dayRef = useRef(today);
 
-  /** Moves passed due dates forward, saves the changes, then reloads everything. */
+  /** Numbers each refresh, so a slow older one can't overwrite what a newer one showed. */
+  const refreshCount = useRef(0);
+  const shownRefresh = useRef(0);
+
+  /** Moves passed due dates forward (in storage, atomically), then reloads everything. */
   const refresh = useCallback(async () => {
+    const run = ++refreshCount.current;
     const now = todayISO();
     dayRef.current = now;
+    await repository.advanceDueDates(now);
     const stored = await repository.listEntries();
-    const rolled = stored.map((e) => rollForward(e, now));
-    const changed = rolled.filter((e, i) => e !== stored[i]);
-    if (changed.length > 0) await repository.putEntries(changed);
+    const storedCategories = await repository.listCategories();
+    if (run < shownRefresh.current) return;
+    shownRefresh.current = run;
     setToday(now);
-    setEntries(rolled);
-    setCategories(sortCategories(await repository.listCategories()));
+    setEntries(stored);
+    setCategories(sortCategories(storedCategories));
   }, []);
 
   useEffect(() => {

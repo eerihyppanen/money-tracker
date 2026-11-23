@@ -1,4 +1,4 @@
-import type { Category, Entry } from '../domain/types';
+import type { Category, Entry, ISODate } from '../domain/types';
 
 /** Everything the app stores. Also the shape of a JSON backup. */
 export interface AppData {
@@ -18,6 +18,11 @@ export interface Repository {
   putEntry(entry: Entry): Promise<void>;
   putEntries(entries: Entry[]): Promise<void>;
   deleteEntry(id: string): Promise<void>;
+  /**
+   * Moves every passed due date forward (see `rollForward`). Runs as one transaction that
+   * changes only due dates, so it can never undo an edit or a delete made at the same time.
+   */
+  advanceDueDates(today: ISODate): Promise<void>;
 
   listCategories(): Promise<Category[]>;
   putCategory(category: Category): Promise<void>;

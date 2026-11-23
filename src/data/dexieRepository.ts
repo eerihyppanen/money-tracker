@@ -1,4 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie';
+import { rollForward } from '../domain/schedule';
 import { DEFAULT_CATEGORIES, type Category, type Entry } from '../domain/types';
 import type { AppData, Repository } from './repository';
 
@@ -36,6 +37,16 @@ export function createDexieRepository(dbName = 'money-tracker'): Repository {
       await db.entries.bulkPut(entries);
     },
     deleteEntry: (id) => db.entries.delete(id),
+    async advanceDueDates(today) {
+      await db.transaction('rw', db.entries, async () => {
+        await db.entries
+          .where('nextDueDate')
+          .below(today)
+          .modify((entry) => {
+            entry.nextDueDate = rollForward(entry, today).nextDueDate;
+          });
+      });
+    },
 
     listCategories: () => db.categories.toArray(),
     putCategory: async (category) => {
