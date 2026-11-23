@@ -362,6 +362,18 @@ describe('settings', () => {
     expect((await repository.listEntries())[0].categoryId).toBe('other');
   });
 
+  it('a quick second tap on Delete does not cancel the category Undo', async () => {
+    await repository.putEntry(entry({}));
+    const user = await openApp('#/settings');
+    const del = within(screen.getByText('Housing').closest('li')!).getByRole('button', { name: 'Delete' });
+    fireEvent.click(del);
+    fireEvent.click(del);
+
+    await user.click(await screen.findByRole('button', { name: 'Undo' }));
+    expect(await screen.findByText('Housing')).toBeInTheDocument();
+    expect((await repository.listEntries())[0].categoryId).toBe('housing');
+  });
+
   it('deletes a category, and Undo moves its entries back from Other', async () => {
     const rent = entry({});
     await repository.putEntry(rent);
@@ -427,6 +439,16 @@ describe('sample data', () => {
     await user.click(screen.getByRole('button', { name: 'Remove it' }));
     expect(await screen.findByRole('button', { name: 'Try with sample data' })).toBeInTheDocument();
     expect(await repository.listEntries()).toHaveLength(0);
+  });
+
+  it('a quick second tap on Remove does not cancel the sample-data Undo', async () => {
+    const user = await openApp('#/?sample');
+    const remove = await screen.findByRole('button', { name: 'Remove it' });
+    fireEvent.click(remove);
+    fireEvent.click(remove);
+
+    await user.click(await screen.findByRole('button', { name: 'Undo' }));
+    expect(await screen.findByText("You're looking at sample data.")).toBeInTheDocument();
   });
 
   it('opens straight into sample data from a demo link', async () => {

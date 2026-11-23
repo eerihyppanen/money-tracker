@@ -46,19 +46,32 @@ function Categories() {
     setName('');
   };
 
+  // One delete at a time: a quick second tap would count as a newer change and cancel the
+  // first one's Undo. The ref blocks even a tap in the same instant; the state disables buttons.
+  const deleteRunning = useRef(false);
+  const [deleting, setDeleting] = useState(false);
+
   const onDelete = async (c: Category) => {
-    // The delete reports the category as stored and the entries it really moved to Other (this
-    // page may be out of date if another tab changed something); Undo puts back exactly those.
-    const change = await deleteCategory(c.id);
-    const { deleted } = change;
-    if (!deleted) return;
-    const n = change.movedEntryIds.length;
-    const note = n > 0 ? `, ${n} ${n === 1 ? 'entry' : 'entries'} moved to Other` : '';
-    showUndo(
-      `Deleted "${deleted.name}"${note}`,
-      () => undoCategoryDelete(deleted, change.movedEntryIds, change),
-      () => isLatestWrite(change),
-    );
+    if (deleteRunning.current) return;
+    deleteRunning.current = true;
+    setDeleting(true);
+    try {
+      // The delete reports the category as stored and the entries it really moved to Other (this
+      // page may be out of date if another tab changed something); Undo puts back exactly those.
+      const change = await deleteCategory(c.id);
+      const { deleted } = change;
+      if (!deleted) return;
+      const n = change.movedEntryIds.length;
+      const note = n > 0 ? `, ${n} ${n === 1 ? 'entry' : 'entries'} moved to Other` : '';
+      showUndo(
+        `Deleted "${deleted.name}"${note}`,
+        () => undoCategoryDelete(deleted, change.movedEntryIds, change),
+        () => isLatestWrite(change),
+      );
+    } finally {
+      deleteRunning.current = false;
+      setDeleting(false);
+    }
   };
 
   return (
@@ -68,7 +81,7 @@ function Categories() {
       </SectionTitle>
       <ul className="divide-y divide-line rounded-2xl border border-line bg-surface">
         {categories.map((c) => (
-          <CategoryRow key={c.id} category={c} count={count(c.id)} onDelete={() => onDelete(c)} />
+          <CategoryRow key={c.id} category={c} count={count(c.id)} onDelete={() => void onDelete(c)} deleting={deleting} />
         ))}
       </ul>
       <form onSubmit={onAdd} noValidate className="mt-3 flex gap-2">
@@ -100,7 +113,17 @@ function Categories() {
   );
 }
 
-function CategoryRow({ category, count, onDelete }: { category: Category; count: number; onDelete: () => void }) {
+function CategoryRow({
+  category,
+  count,
+  onDelete,
+  deleting,
+}: {
+  category: Category;
+  count: number;
+  onDelete: () => void;
+  deleting: boolean;
+}) {
   const { categories, saveCategory } = useData();
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(category.name);
@@ -162,7 +185,12 @@ function CategoryRow({ category, count, onDelete }: { category: Category; count:
         Rename
       </button>
       {category.id !== OTHER_CATEGORY_ID ? (
-        <button type="button" onClick={onDelete} className="-mr-2 px-3 py-2.5 text-sm text-expense">
+        <button
+          type="button"
+          onClick={onDelete}
+          disabled={deleting}
+          className="-mr-2 px-3 py-2.5 text-sm text-expense disabled:opacity-50"
+        >
           Delete
         </button>
       ) : (
