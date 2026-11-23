@@ -33,8 +33,26 @@ const ids = (filter: Partial<ListFilter>) =>
   filterAndSort(entries, { ...DEFAULT_LIST_FILTER, ...filter }, '2026-11-11').map((e) => e.id);
 
 describe('filterAndSort', () => {
+  it('sorts by the next payment the row shows, with no upcoming payment after the rest', () => {
+    const list = [
+      // Last payment 1.11., ends 30.11.: the stored due date stays 1.11., but nothing is coming.
+      entry('last-done', { nextDueDate: '2026-11-01', endDate: '2026-11-30' }),
+      entry('soon', { nextDueDate: '2026-11-12', anchorDay: 12 }),
+      entry('tyres', { frequency: 'one-time', nextDueDate: '2026-10-03', startDate: '2026-10-03' }),
+      // Due date before the start: the first payment that counts is 1.12.
+      entry('starts', { nextDueDate: '2026-10-01', startDate: '2026-12-01' }),
+    ];
+    expect(filterAndSort(list, DEFAULT_LIST_FILTER, '2026-11-11').map((e) => e.id)).toEqual([
+      'soon',
+      'starts',
+      'tyres', // nothing coming: by stored date (3.10. before 1.11.)
+      'last-done',
+    ]);
+  });
+
   it('sorts by next due date by default, with paused and ended entries last', () => {
-    expect(ids({})).toEqual(['netflix', 'salary', 'rent', 'insurance', 'ended', 'paused']);
+    // Among the dormant ones too, a coming date (paused, next 12.11.) sorts before none (ended).
+    expect(ids({})).toEqual(['netflix', 'salary', 'rent', 'insurance', 'paused', 'ended']);
   });
 
   it('sorts by amount, largest first', () => {
