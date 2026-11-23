@@ -157,9 +157,12 @@ export function monthSummary(entries: Entry[], year: number, month: number): Mon
   };
 }
 
-/** Recurring entries that count towards the "average month": active, not ended, not one-time. */
-function isRecurringNow(entry: Entry, today: ISODate): boolean {
-  return entry.active && !isEnded(entry, today) && entry.frequency !== 'one-time';
+/**
+ * Recurring entries that count towards the "average month": active, already started,
+ * not ended, not one-time.
+ */
+export function isRecurringNow(entry: Entry, today: ISODate): boolean {
+  return entry.active && entry.startDate <= today && !isEnded(entry, today) && entry.frequency !== 'one-time';
 }
 
 /** Income, expenses and difference with every recurring entry normalised to a month. */

@@ -3,7 +3,7 @@ import { useData } from '../../data/dataContext';
 import { backupReminder } from '../../domain/backup';
 import { isSample } from '../../domain/sample';
 import { formatCents, formatMonth } from '../../domain/format';
-import { averageMonth, byCategory, isEnded, monthProgress, upcoming, type Totals } from '../../domain/schedule';
+import { averageMonth, byCategory, isRecurringNow, monthProgress, upcoming, type Totals } from '../../domain/schedule';
 import type { Entry } from '../../domain/types';
 import { CategoryChart } from '../components/CategoryChart';
 import { ChargeList } from '../components/ChargeList';
@@ -68,7 +68,7 @@ export function OverviewPage() {
 function recurringNamesByCategory(entries: Entry[], today: string): Map<string, string[]> {
   const names = new Map<string, string[]>();
   [...entries]
-    .filter((e) => e.type === 'expense' && e.active && e.frequency !== 'one-time' && !isEnded(e, today))
+    .filter((e) => e.type === 'expense' && isRecurringNow(e, today))
     .sort((a, b) => b.amountCents - a.amountCents)
     .forEach((e) => names.set(e.categoryId, [...(names.get(e.categoryId) ?? []), e.name]));
   return names;

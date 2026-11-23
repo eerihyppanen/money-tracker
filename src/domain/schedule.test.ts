@@ -6,6 +6,7 @@ import {
   byCategory,
   expensesByCategory,
   isEnded,
+  isRecurringNow,
   monthProgress,
   monthSummary,
   monthlyEquivalent,
@@ -282,6 +283,12 @@ describe('averageMonth', () => {
       netCents: 208000,
     });
   });
+
+  it('counts an entry only from its start date', () => {
+    const newJob = entry({ id: 'job', type: 'income', amountCents: 300000, startDate: '2027-03-01', nextDueDate: '2027-03-25' });
+    expect(averageMonth([newJob], '2026-11-11').incomeCents).toBe(0);
+    expect(averageMonth([newJob], '2027-03-01').incomeCents).toBe(300000);
+  });
 });
 
 describe('upcoming', () => {
@@ -320,6 +327,26 @@ describe('byCategory', () => {
       { categoryId: 'housing', monthlyCents: 92000 },
       { categoryId: 'subscriptions', monthlyCents: 1500 },
     ]);
+  });
+
+  it('leaves out expenses that have not started yet', () => {
+    const entries = [
+      entry({ id: 'rent', categoryId: 'housing', amountCents: 90000 }),
+      entry({ id: 'gym', categoryId: 'other', amountCents: 4000, startDate: '2027-01-01', nextDueDate: '2027-01-05' }),
+    ];
+    expect(byCategory(entries, '2026-11-11')).toEqual([{ categoryId: 'housing', monthlyCents: 90000 }]);
+  });
+});
+
+describe('isRecurringNow', () => {
+  it('is true only for active, started, not ended, recurring entries', () => {
+    const today = '2026-11-11';
+    expect(isRecurringNow(entry({}), today)).toBe(true);
+    expect(isRecurringNow(entry({ startDate: today }), today)).toBe(true);
+    expect(isRecurringNow(entry({ startDate: '2026-11-12' }), today)).toBe(false);
+    expect(isRecurringNow(entry({ active: false }), today)).toBe(false);
+    expect(isRecurringNow(entry({ endDate: '2026-11-10' }), today)).toBe(false);
+    expect(isRecurringNow(entry({ frequency: 'one-time' }), today)).toBe(false);
   });
 });
 

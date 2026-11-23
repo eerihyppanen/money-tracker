@@ -1,6 +1,6 @@
 /** Converting between what the add/edit form holds (strings) and a stored Entry. */
 import { firstOfMonth, isValidISO, minDate, parseISO } from './dates';
-import { formatAmountInput, parseAmount } from './format';
+import { formatAmountInput, formatDate, parseAmount } from './format';
 import { OTHER_CATEGORY_ID, type Entry, type EntryType, type Frequency, type ISODate } from './types';
 
 export interface EntryFormValues {
@@ -65,6 +65,12 @@ export function validateForm(v: EntryFormValues): FormErrors {
     if (!isValidISO(v.startDate)) errors.startDate = 'Pick a start date.';
     if (v.endDate !== '' && isValidISO(v.startDate) && v.endDate < v.startDate) {
       errors.endDate = 'The end date must be on or after the start date.';
+    }
+    // A payment outside the start–end range would show as "next" but never be counted.
+    if (!errors.nextDueDate && !errors.startDate && v.nextDueDate < v.startDate) {
+      errors.nextDueDate = `This is before the start date, ${formatDate(v.startDate)}.`;
+    } else if (!errors.nextDueDate && !errors.endDate && v.endDate !== '' && v.nextDueDate > v.endDate) {
+      errors.nextDueDate = `This is after the end date, ${formatDate(v.endDate)}.`;
     }
   }
   return errors;

@@ -60,7 +60,21 @@ describe('validateForm', () => {
     expect(validateForm(form({ startDate: '2026-11-01', endDate: '2026-10-31' }))).toHaveProperty(
       'endDate',
     );
-    expect(validateForm(form({ startDate: '2026-11-01', endDate: '2026-11-01' }))).toEqual({});
+    expect(
+      validateForm(form({ startDate: '2026-11-01', nextDueDate: '2026-11-01', endDate: '2026-11-01' })),
+    ).toEqual({});
+  });
+
+  it('keeps the next due date between the start and end dates', () => {
+    expect(validateForm(form({ startDate: '2027-01-01', nextDueDate: '2026-12-01' }))).toEqual({
+      nextDueDate: 'This is before the start date, 1.1.2027.',
+    });
+    expect(validateForm(form({ nextDueDate: '2026-12-01', endDate: '2026-11-30' }))).toEqual({
+      nextDueDate: 'This is after the end date, 30.11.2026.',
+    });
+    expect(validateForm(form({ startDate: '2026-12-01', nextDueDate: '2026-12-01', endDate: '2026-12-01' }))).toEqual({});
+    // One-time entries have no start or end date to compare with.
+    expect(validateForm(form({ frequency: 'one-time', startDate: '2027-01-01', nextDueDate: '2026-12-01' }))).toEqual({});
   });
 
   it('ignores start and end dates for one-time entries', () => {
