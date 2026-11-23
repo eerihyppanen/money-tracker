@@ -37,6 +37,9 @@ export function DataProvider({ children, onWrite }: { children: ReactNode; onWri
     return ++writeCount.current;
   }, [onWrite]);
 
+  /** Messages to and from other open tabs of the app (same browser), about changed data. */
+  const otherTabs = useRef<BroadcastChannel | null>(null);
+
   /** Numbers each refresh, so a slow older one can't overwrite what a newer one showed. */
   const refreshCount = useRef(0);
   const shownRefresh = useRef(0);
@@ -89,6 +92,22 @@ export function DataProvider({ children, onWrite }: { children: ReactNode; onWri
     };
   }, [refresh]);
 
+  // Another tab changed the data: treat it like a write here (closes a pending Undo and makes
+  // older Undo offers stale), then reload. A tab never receives its own messages.
+  useEffect(() => {
+    if (typeof BroadcastChannel !== 'function') return;
+    const channel = new BroadcastChannel('money-tracker:changes');
+    otherTabs.current = channel;
+    channel.onmessage = () => {
+      beginWrite();
+      void refresh();
+    };
+    return () => {
+      channel.close();
+      otherTabs.current = null;
+    };
+  }, [beginWrite, refresh]);
+
   const value = useMemo<DataContextValue>(() => {
     const names = new Map(categories.map((c) => [c.id, c.name]));
     return {
@@ -107,24 +126,28 @@ export function DataProvider({ children, onWrite }: { children: ReactNode; onWri
         const version = beginWrite();
         const stamped = { ...entry, updatedAt: new Date().toISOString() };
         await repository.putEntry(rollForward(stamped, todayISO()));
+        otherTabs.current?.postMessage('changed');
         await refresh();
         return version;
       },
       async deleteEntry(id) {
         const version = beginWrite();
         await repository.deleteEntry(id);
+        otherTabs.current?.postMessage('changed');
         await refresh();
         return version;
       },
       async deleteEntries(ids) {
         const version = beginWrite();
         for (const id of ids) await repository.deleteEntry(id);
+        otherTabs.current?.postMessage('changed');
         await refresh();
         return version;
       },
       async saveCategory(category) {
         const version = beginWrite();
         await repository.putCategory(category);
+        otherTabs.current?.postMessage('changed');
         await refresh();
         return version;
       },
@@ -132,6 +155,7 @@ export function DataProvider({ children, onWrite }: { children: ReactNode; onWri
         const version = beginWrite();
         if (id === OTHER_CATEGORY_ID) throw new Error('The Other category cannot be deleted.');
         await repository.deleteCategory(id, OTHER_CATEGORY_ID);
+        otherTabs.current?.postMessage('changed');
         await refresh();
         return version;
       },
@@ -141,18 +165,21 @@ export function DataProvider({ children, onWrite }: { children: ReactNode; onWri
           categories: restoredCategories,
           entries: restored.map((e) => rollForward(e, todayISO())),
         });
+        otherTabs.current?.postMessage('changed');
         await refresh();
         return version;
       },
       async undoCategoryDelete(category, entryIds) {
         const version = beginWrite();
         await repository.undoCategoryDelete(category, entryIds, OTHER_CATEGORY_ID);
+        otherTabs.current?.postMessage('changed');
         await refresh();
         return version;
       },
       async replaceAll(data) {
         const version = beginWrite();
         await repository.replaceAll(data);
+        otherTabs.current?.postMessage('changed');
         await refresh();
         return version;
       },
