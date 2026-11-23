@@ -5,10 +5,10 @@ on:
     branches: [master, main]
   workflow_dispatch:
 
+# Least privilege: the build job runs third-party code (npm install scripts, tests), so it
+# only gets read access. Only the deploy job, which runs GitHub's own action, can publish.
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: pages
@@ -34,6 +34,9 @@ jobs:
           path: dist
 
   deploy:
+    permissions:
+      pages: write
+      id-token: write
     needs: build
     runs-on: ubuntu-latest
     environment:
