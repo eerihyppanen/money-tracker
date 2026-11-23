@@ -111,6 +111,19 @@ describe('editing and deleting', () => {
     expect(await repository.listEntries()).toHaveLength(0);
   });
 
+  it('ends a subscription before its next charge', async () => {
+    await repository.putEntry(entry({})); // charged on the 1st, next on 1.12.2026
+    const user = await openApp('#/entry/rent');
+
+    fireEvent.change(screen.getByLabelText('Ends (optional)'), { target: { value: '2026-11-30' } });
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+
+    const row = (await screen.findByText('Rent')).closest('a')!;
+    expect(text(row)).toContain('Ends 30.11.2026, no more payments');
+    expect(text(row)).not.toContain('Next 1.12.2026');
+    expect((await repository.listEntries())[0]).toMatchObject({ endDate: '2026-11-30', nextDueDate: '2026-12-01' });
+  });
+
   it('goes straight back to the list without flashing "Entry not found"', async () => {
     await repository.putEntry(entry({}));
     const user = await openApp('#/list');

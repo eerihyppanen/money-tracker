@@ -248,3 +248,11 @@ export function expensesByCategory(charges: Charge[]): { categoryId: string; cen
     .map(([categoryId, cents]) => ({ categoryId, cents }))
     .sort((a, b) => b.cents - a.cents);
 }
+
+/**
+ * The date of the next payment, or null when the entry ends before it: a subscription
+ * cancelled after its last charge keeps its rhythm but has no next payment.
+ */
+export function nextPayment(entry: Entry): ISODate | null {
+  return entry.endDate !== undefined && entry.nextDueDate > entry.endDate ? null : entry.nextDueDate;
+}

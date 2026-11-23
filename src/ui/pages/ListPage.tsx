@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { useData } from '../../data/dataContext';
 import { formatCents, formatDate } from '../../domain/format';
 import { DEFAULT_LIST_FILTER, filterAndSort, parseListFilter, type ListFilter } from '../../domain/listing';
-import { isEnded, monthlyEquivalent, yearlyEquivalent } from '../../domain/schedule';
+import { isEnded, monthlyEquivalent, nextPayment, yearlyEquivalent } from '../../domain/schedule';
 import { FREQUENCIES, FREQUENCY_LABELS, type Entry } from '../../domain/types';
 import { Segmented } from '../components/form';
 import { PageHeader } from '../components/PageHeader';
@@ -137,6 +137,7 @@ function EntryRow({ entry }: { entry: Entry }) {
   const ended = isEnded(entry, today);
   const dormant = !entry.active || ended;
   const oneTime = entry.frequency === 'one-time';
+  const next = nextPayment(entry);
   const sign = entry.type === 'income' ? '+' : '−';
 
   return (
@@ -156,7 +157,9 @@ function EntryRow({ entry }: { entry: Entry }) {
           </div>
           {!ended && (
             <div className="num text-sm text-muted">
-              {oneTime ? 'On' : 'Next'} {formatDate(entry.nextDueDate)}
+              {next !== null
+                ? `${oneTime ? 'On' : 'Next'} ${formatDate(next)}`
+                : `Ends ${formatDate(entry.endDate!)}, no more payments`}
             </div>
           )}
         </div>

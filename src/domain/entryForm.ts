@@ -66,11 +66,10 @@ export function validateForm(v: EntryFormValues): FormErrors {
     if (v.endDate !== '' && isValidISO(v.startDate) && v.endDate < v.startDate) {
       errors.endDate = 'The end date must be on or after the start date.';
     }
-    // A payment outside the start–end range would show as "next" but never be counted.
+    // A due date before the start can never be charged. (A due date after the end date is
+    // fine: that is how a subscription ends before its next charge.)
     if (!errors.nextDueDate && !errors.startDate && v.nextDueDate < v.startDate) {
       errors.nextDueDate = `This is before the start date, ${formatDate(v.startDate)}.`;
-    } else if (!errors.nextDueDate && !errors.endDate && v.endDate !== '' && v.nextDueDate > v.endDate) {
-      errors.nextDueDate = `This is after the end date, ${formatDate(v.endDate)}.`;
     }
   }
   return errors;

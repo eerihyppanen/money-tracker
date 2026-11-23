@@ -10,6 +10,7 @@ import {
   monthProgress,
   monthSummary,
   monthlyEquivalent,
+  nextPayment,
   occurrencesInRange,
   rollForward,
   upcoming,
@@ -416,5 +417,21 @@ describe('expensesByCategory', () => {
       { categoryId: 'housing', cents: 93000 },
       { categoryId: 'food', cents: 16000 },
     ]);
+  });
+});
+
+describe('ending before the next charge', () => {
+  // Charged on the 1st; cancelled so it ends on 30.11., before the 1.12. charge.
+  const cancelled = entry({ nextDueDate: '2026-12-01', startDate: '2026-01-01', endDate: '2026-11-30' });
+
+  it('keeps the last charge and drops the ones after the end date', () => {
+    expect(monthSummary([cancelled], 2026, 11).charges.map((c) => c.date)).toEqual(['2026-11-01']);
+    expect(monthSummary([cancelled], 2026, 12).charges).toEqual([]);
+  });
+
+  it('has no next payment', () => {
+    expect(nextPayment(cancelled)).toBeNull();
+    expect(nextPayment(entry({ nextDueDate: '2026-12-01', endDate: '2026-12-01' }))).toBe('2026-12-01');
+    expect(nextPayment(entry({ nextDueDate: '2026-12-01' }))).toBe('2026-12-01');
   });
 });
